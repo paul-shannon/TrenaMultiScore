@@ -5,8 +5,8 @@ Version: 1.0.0
 Author: Paul Shannon
 Maintainer: Paul Shannon <pshannon@systemsbiology.org>
 Description: Create and explore TFBS/targetGene data assembled from many sources.
-Imports: methods
-Depends: R (>= 3.5.1), TrenaProject
+Imports: methods, phastCons7way.UCSC.hg38, phastCons30way.UCSC.hg38, phastCons100way.UCSC.hg38
+Depends: R (>= 3.5.1), TrenaProject, MotifDb
 License: Apache 2.0
 Encoding: UTF-8
 LazyData: true

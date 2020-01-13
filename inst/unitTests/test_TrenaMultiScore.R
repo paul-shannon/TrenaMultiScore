@@ -16,6 +16,7 @@ runTests <- function()
 {
    test_constructor()
    test_getGeneHancerRegion()
+   test_findOpenChromatin()
 
 } # runTests
 #------------------------------------------------------------------------------------------------------------------------
@@ -44,6 +45,19 @@ test_getGeneHancerRegion <- function()
    checkEquals(as.list(tbl.trem2), list(chrom="chr6", start=41131001, end=41296400))
 
 } # test_getGeneHancerRegion
+#------------------------------------------------------------------------------------------------------------------------
+test_findOpenChromatin <- function()
+{
+   message(sprintf("--- test_findOpenChromatin"))
+
+   findOpenChromatin(tmse, chrom="chr3", start=128478422, end=128494187)
+   tbl.oc <- getOpenChromatin(tmse)
+   checkEquals(dim(tbl.oc), c(7, 7))
+   checkEquals(dim(getOpenChromatin(tmsa)), c(0,0))
+
+   findOpenChromatin(tmsa)
+
+} # test_findOpenChromatin
 #------------------------------------------------------------------------------------------------------------------------
 if(!interactive())
    runTests()

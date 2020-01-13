@@ -2,13 +2,38 @@
 % Please edit documentation in R/TrenaMultiScore.R
 \name{getGeneHancerRegion,TrenaMultiScore-method}
 \alias{getGeneHancerRegion,TrenaMultiScore-method}
+\alias{getFimoTFBS,TrenaMultiScore-method}
 \title{return the full extent of GeneHancer regions for the targetGene}
 \usage{
 \S4method{getGeneHancerRegion}{TrenaMultiScore}(obj)
+
+\S4method{getFimoTFBS}{TrenaMultiScore}(
+  obj,
+  motifs = NA,
+  fimoThreshold = NA,
+  chrom = NA,
+  start = NA,
+  end = NA
+)
+}
+\arguments{
+\item{motifs}{a list of MotifDb items, JASPAR2019 hsapiens by default}
+
+\item{chrom}{geneHancerRegion chrom by default}
+
+\item{start}{geneHancerRegion start by default}
+
+\item{end}{geneHancerRegion end by default}
+
+\item{fimo.threshold}{1e-4 by default}
 }
 \value{
+a data.frame
+
 a data.frame
 }
 \description{
 GeneHancer has distal enhancers withing ~1MB of the gene; return that region
+
+call FimoBatch to get data.frame of all matches above threshold
 }
