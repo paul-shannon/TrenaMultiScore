@@ -17,6 +17,7 @@ runTests <- function()
    test_constructor()
    test_getGeneHancerRegion()
    test_findOpenChromatin()
+   test_getFimoTFBS()
 
 } # runTests
 #------------------------------------------------------------------------------------------------------------------------
@@ -50,14 +51,28 @@ test_findOpenChromatin <- function()
 {
    message(sprintf("--- test_findOpenChromatin"))
 
-   findOpenChromatin(tmse, chrom="chr3", start=128478422, end=128494187)
+   findOpenChromatin(tmse, "chr3", start=128470539, end=128502070)
    tbl.oc <- getOpenChromatin(tmse)
-   checkEquals(dim(tbl.oc), c(7, 7))
-   checkEquals(dim(getOpenChromatin(tmsa)), c(0,0))
+   dim(tbl.oc)
+   checkTrue(nrow(tbl.oc) > 12)
+   checkEquals(ncol(tbl.oc), 7)
 
-   findOpenChromatin(tmsa)
+   checkEquals(dim(getOpenChromatin(tmsa)), c(0,0))
+   findOpenChromatin(tmsa, "chr3", start=128470539, end=128502070) # start=128478422, end=128494187)
+   tbl.oc2 <- getOpenChromatin(tmsa)
+   checkTrue(nrow(tbl.oc2) > 5000)
 
 } # test_findOpenChromatin
+#------------------------------------------------------------------------------------------------------------------------
+test_getFimoTFBS <- function()
+{
+   message(sprintf("--- test_FimoTFBS"))
+
+   findOpenChromatin(tmse, "chr3", start=128483204, end=128483276)
+   getOpenChromatin(tmse)
+   tbl.fimo <- getFimoTFBS(tmse)
+
+} # test_getFimoTFBS
 #------------------------------------------------------------------------------------------------------------------------
 if(!interactive())
    runTests()

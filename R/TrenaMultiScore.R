@@ -9,6 +9,7 @@ source("~/github/fimoService/batchMode/fimoBatchTools.R")
 #' @import methods
 #' @importFrom AnnotationDbi select
 #' @import org.Hs.eg.db
+#' @import RPostgreSQL
 #'
 #' @import GenomicScores
 #' @import phastCons7way.UCSC.hg38
@@ -38,7 +39,7 @@ setGeneric('getGeneHancerRegion', signature='obj', function(obj) standardGeneric
 setGeneric('findOpenChromatin', signature='obj', function(obj, chrom=NA, start=NA, end=NA)
               standardGeneric('findOpenChromatin'))
 setGeneric('getOpenChromatin', signature='obj', function(obj) standardGeneric('getOpenChromatin'))
-setGeneric('getFimoTFBS', signature='obj', function(obj, motifs=NA, fimoThreshold=NA, chrom=NA, start=NA, end=NA)
+setGeneric('getFimoTFBS', signature='obj', function(obj, motifs=NA, fimo.threshold=NA, chrom=NA, start=NA, end=NA)
               standardGeneric('getFimoTFBS'))
 #------------------------------------------------------------------------------------------------------------------------
 #' Define an object of class TrenaMultiScore
@@ -126,13 +127,12 @@ setMethod('findOpenChromatin', 'TrenaMultiScore',
             end   <- tbl.x$end
             }
         if("TrenaProjectErythropoiesis" %in% is(getProject(obj))){
-           printf("--- will retrieve open chromatin from brand lab atac-seq reduced")
-           obj@state$openChromatin <- .getBrandLabATACseq(chrom, start, end)
+           obj@state$openChromatin <- .queryBrandLabATACseq(chrom, start, end)
            }
-        if("TrenaProjectAD" %in% is(getProject(obj))){
-           printf("--- will retrieve open chromatin from khaleesi hint_16")
-           obj@state$openChromatin <- .getHintFootprintRegionsFromDatabase("brain_hint_16", chrom, start, end)
+        else if("TrenaProjectAD" %in% is(getProject(obj))){
+           obj@state$openChromatin <- .queryHintFootprintRegionsFromDatabase("brain_hint_16", chrom, start, end)
            }
+         else stop(sprintf("no support for open chromatin retrieval in %s", getProject(ob)@projectName))
          })
 
 
@@ -174,33 +174,52 @@ setMethod('getOpenChromatin', 'TrenaMultiScore',
 #' @export
 #'
 setMethod('getFimoTFBS', 'TrenaMultiScore',
-       function(obj, motifs=NA, fimoThreshold=NA, chrom=NA, start=NA, end=NA){
-          if(is.na(motifs))
-             motifs <- query(obj@motifDb, c("sapiens", "jaspar2018"))
-          if(is.na(fimo.threshold))
-             fimo.threshold <- 1e-4
-          tbl.gh <- getGeneHancerRegion(obj)
-          if(is.na(chrom))
-             chrom <- tbl.gh$chrom
-          if(is.na(start))
-             start <- tbl.gh$start
-          if(is.na(end))
-             end <- tbl.gh$end
-          tbl.fimo <- fimoBatch(tbl.fp, matchThreshold=1e-3, genomeName="hg38", pwmFile=meme.file)
 
-          }) # getFimoTFBS
+    function(obj, motifs=NA, fimo.threshold=NA, chrom=NA, start=NA, end=NA){
+
+       if(is.na(motifs))
+           motifs <- query(obj@motifDb, c("sapiens", "jaspar2018"))
+
+       if(is.na(fimo.threshold))
+          fimo.threshold <- 1e-4
+       tbl.gh <- getGeneHancerRegion(obj)
+       if(is.na(chrom))
+          chrom <- tbl.gh$chrom
+       if(is.na(start))
+          start <- tbl.gh$start
+       if(is.na(end))
+          end <- tbl.gh$end
+
+       tbl.fp <- getOpenChromatin(obj)
+       meme.file <- "tmp.meme"
+       export(motifs, con=meme.file, format="meme")
+       fimoBatch(tbl.fp, matchThreshold=fimo.threshold, genomeName="hg38", pwmFile=meme.file)
+       }) # getFimoTFBS
 
 #------------------------------------------------------------------------------------------------------------------------
-.getBrandLabATACseq <- function(chrom.loc, start.loc, end.loc)
+.queryBrandLabATACseq <- function(chrom.loc, start.loc, end.loc)
 {
 
-  load("~/github/TrenaProjectErythropoiesis/misc/multiScore/brandAtacSeqCuration/tbl.atac.RData")
+  tbl.atac <- get(load("~/github/TrenaProjectErythropoiesis/misc/multiScore/brandAtacSeqCuration/tbl.atac.fp.RData"))
   subset(tbl.atac, chrom==chrom.loc & start >= start.loc & end <= end.loc)
 
-} # .getBrandLabATACseq
+} # .queryBrandLabATACseq
 #------------------------------------------------------------------------------------------------------------------------
-.getHintFootprintRegionsFromDatabase <- function(database.name, chrom.loc, start.loc, end.loc)
+.queryHintFootprintRegionsFromDatabase <- function(database.name, chrom.loc, start.loc, end.loc)
 {
+   db <- dbConnect(PostgreSQL(), user= "trena", password="trena", dbname="brain_hint_16", host="khaleesi")
+   query <- sprintf("select * from regions where chrom='%s' and start >= %d and endpos <= %d",
+                    chrom.loc, start.loc, end.loc)
+   tbl <- dbGetQuery(db, query)
+   dbDisconnect(db)
 
-} # .getHintFootprintRegionsFromDatabase
+   if(nrow(tbl) > 0){
+      tbl <- tbl[, c("chrom", "start", "endpos")]
+      colnames(tbl) <- c("chrom", "start", "end")
+      }
+
+
+   tbl
+
+} # .queryHintFootprintRegionsFromDatabase
 #------------------------------------------------------------------------------------------------------------------------
