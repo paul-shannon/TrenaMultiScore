@@ -4,7 +4,6 @@
 # 4) score all TFBS for conservation
 # 5) determine distance from TSS for all TFBS
 #------------------------------------------------------------------------------------------------------------------------
-source("~/github/fimoService/batchMode/fimoBatchTools.R")
 #------------------------------------------------------------------------------------------------------------------------
 #' @import methods
 #' @importFrom AnnotationDbi select
@@ -193,6 +192,7 @@ setMethod('getFimoTFBS', 'TrenaMultiScore',
        tbl.fp <- getOpenChromatin(obj)
        meme.file <- "tmp.meme"
        export(motifs, con=meme.file, format="meme")
+       source("~/github/fimoService/batchMode/fimoBatchTools.R")
        fimoBatch(tbl.fp, matchThreshold=fimo.threshold, genomeName="hg38", pwmFile=meme.file)
        }) # getFimoTFBS
 
