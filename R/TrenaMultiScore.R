@@ -43,6 +43,7 @@ setGeneric('scoreMotifHitsForConservation', signature='obj', function(obj) stand
 setGeneric('getMultiScoreTable', signature='obj', function(obj) standardGeneric('getMultiScoreTable'))
 setGeneric('getTargetGeneInfo', signature='obj', function(obj) standardGeneric('getTargetGeneInfo'))
 setGeneric('addDistanceToTSS', signature='obj', function(obj) standardGeneric('addDistanceToTSS'))
+setGeneric('scoreMotifHitsForGeneHancer', signature='obj', function(obj) standardGeneric('scoreMotifHitsForGeneHancer'))
 #------------------------------------------------------------------------------------------------------------------------
 #' Define an object of class TrenaMultiScore
 #'
@@ -100,6 +101,7 @@ setMethod('getGeneHancerRegion', 'TrenaMultiScore',
 
      function(obj){
         tbl <- getEnhancers(getProject(obj))
+        obj@state$genehancer <- tbl
         data.frame(chrom=tbl$chrom[1],
                    start=min(tbl$start) - 1000,
                    end=max(tbl$end) + 1000, stringsAsFactors=FALSE)
@@ -201,7 +203,7 @@ setMethod('findFimoTFBS', 'TrenaMultiScore',
           end <- tbl.gh$end
 
        meme.file <- "tmp.meme"
-       export(motifs, con=meme.file, format="meme")
+       MotifDb::export(motifs, con=meme.file, format="meme")
        source("~/github/fimoService/batchMode/fimoBatchTools.R")
        tbl.fimo <- fimoBatch(tbl.fp, matchThreshold=fimo.threshold, genomeName="hg38", pwmFile=meme.file)
        obj@state$fimo <- tbl.fimo
@@ -345,5 +347,36 @@ setMethod('getTargetGeneInfo', 'TrenaMultiScore',
       coi <- c("tss", "strand", "chrom", "start", "end")
       as.list(getTranscriptsTable(getProject(obj))[coi])
       }) # getTargetGeneInfo
+
+#------------------------------------------------------------------------------------------------------------------------
+# setGeneric('addGeneHancerScores', signature='obj', function(obj) standardGeneric('addGeneHancerScores'))
+#' add conservation scores to the currently held fimo table
+#'
+#' @description
+#'   adds several conservation scores, each an average, to each motif hit in the already build fimo table
+#'
+#' @rdname scoreMotifHitsForGeneHancer
+#'
+#' @param obj a TrenaMultiScore object
+#' @return a data.frame
+#'
+#' @export
+#'
+setMethod('scoreMotifHitsForGeneHancer', 'TrenaMultiScore',
+
+    function(obj){
+
+      tbl.gh <- obj@state$genehancer
+      tbl.fimo <- obj@state$fimo
+      if(nrow(tbl.fimo) == 0)
+         stop("TrenaMultiScore::scoreMotifHitsForGeneHancer error: no fimo hits yet identified.")
+
+      tbl.ov <- as.data.frame(findOverlaps(GRanges(tbl.fimo), GRanges(tbl.gh)))
+      colnames(tbl.ov) <- c("fimo", "gh")
+      tbl.fimo$gh <- rep(0, nrow(tbl.fimo))
+      tbl.fimo$gh[tbl.ov$fimo] <- round(tbl.gh$combinedscore[tbl.ov$gh], digits=2)
+      rownames(tbl.fimo) <- NULL
+      obj@state$fimo <- tbl.fimo
+      }) # scoreMotifHitsForGeneHancer
 
 #------------------------------------------------------------------------------------------------------------------------

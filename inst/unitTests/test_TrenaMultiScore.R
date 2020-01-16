@@ -21,6 +21,7 @@ runTests <- function()
    test_scoreMotifHitsForConservation()
    test_getTargetGeneInfo()
    test_addDistanceToTSS()
+   test_scoreMotifHitsForGeneHancer()
 
 } # runTests
 #------------------------------------------------------------------------------------------------------------------------
@@ -137,5 +138,46 @@ test_addDistanceToTSS <- function()
 
 } # test_addDistanceToTSS
 #------------------------------------------------------------------------------------------------------------------------
+test_scoreMotifHitsForGeneHancer <- function()
+{
+   message(sprintf("--- test_scoreMotifHitsForGeneHancer"))
+
+   tss <- getTargetGeneInfo(tmse)$tss
+   shoulder <- 100000
+   findOpenChromatin(tmse, "chr3", start=tss-(2*shoulder), end=tss+shoulder)
+
+   findFimoTFBS(tmse, fimo.threshold=1e-6)
+   tbl.fimo <- getMultiScoreTable(tmse)
+   # checkEquals(dim(tbl.fimo), c(5, 9))
+
+   scoreMotifHitsForGeneHancer(tmse)
+
+   tbl <- getMultiScoreTable(tmse)
+   gh.values <- unique(tbl$gh)
+
+     # when a motif is within the full range reported by genehancer, but does
+     # not fall within a genehancer region, then it gets a zero score. check that
+     # also check to see that multiple non-zero scores were picked up
+   checkTrue(0 %in% gh.values)
+   checkTrue(length(unique(gh.values)) == 4)
+
+} # test_scoreMotifHitsForGeneHancer
+#------------------------------------------------------------------------------------------------------------------------
+test_erythropoeisis.hoxb4 <- function()
+{
+   message(sprintf("--- test_erythropoeisis.hoxb4"))
+
+   tms.hoxb4 <- TrenaMultiScore(tpe, "HOXB4");
+   getGeneHancerRegion(tms.hoxb4)
+   findOpenChromatin(tms.hoxb4)
+   findFimoTFBS(tms.hoxb4, fimo.threshold=1e-3)
+   scoreMotifHitsForConservation(tms.hoxb4)
+   scoreMotifHitsForGeneHancer(tms.hoxb4)
+   tbl <- getMultiScoreTable(tms.hoxb4)
+   checkEquals(nrow(subset(tbl, gh > 0 & tf=="TBX15")), 4)
+
+} # test_erythropoeisis.hoxb4
+#------------------------------------------------------------------------------------------------------------------------
+
 if(!interactive())
    runTests()
