@@ -17,7 +17,8 @@ runTests <- function()
    test_constructor()
    test_getGeneHancerRegion()
    test_findOpenChromatin()
-   test_getFimoTFBS()
+   test_findFimoTFBS()
+   test_scoreMotifHitsForConservation()
 
 } # runTests
 #------------------------------------------------------------------------------------------------------------------------
@@ -64,15 +65,45 @@ test_findOpenChromatin <- function()
 
 } # test_findOpenChromatin
 #------------------------------------------------------------------------------------------------------------------------
-test_getFimoTFBS <- function()
+test_findFimoTFBS <- function()
 {
-   message(sprintf("--- test_FimoTFBS"))
+   message(sprintf("--- test_findFimoTFBS"))
 
    findOpenChromatin(tmse, "chr3", start=128483204, end=128483276)
    getOpenChromatin(tmse)
-   tbl.fimo <- getFimoTFBS(tmse)
 
-} # test_getFimoTFBS
+   findFimoTFBS(tmse)
+   tbl.fimo <- getMultiScoreTable(tmse)
+   checkEquals(dim(tbl.fimo), c(2, 9))
+   checkTrue(all(c("SP2", "ZNF263") %in% tbl.fimo$tf))
+
+   findFimoTFBS(tmse, fimo.threshold=1e-3)
+   tbl.fimo <- getMultiScoreTable(tmse)
+
+   checkTrue(nrow(tbl.fimo) > 30)
+   checkTrue(all(c("SP2", "ZNF263", "CEBPB", "SP1") %in% tbl.fimo$tf)) # and many others
+
+} # test_findFimoTFBS
+#------------------------------------------------------------------------------------------------------------------------
+test_scoreMotifHitsForConservation <- function()
+{
+   message(sprintf("--- test_scoreMotifHitsForConservation"))
+
+   findOpenChromatin(tmse, "chr3", start=128481000, end=128489000)
+   findFimoTFBS(tmse, fimo.threshold=1e-5)
+   tbl.fimo <- getMultiScoreTable(tmse)
+   checkEquals(dim(tbl.fimo), c(5, 9))
+
+   scoreMotifHitsForConservation(tmse)
+
+   tbl <- getMultiScoreTable(tmse)
+   checkEquals(dim(tbl), c(5, 12))
+   checkTrue(all(c("phast7", "phast30", "phast100") %in% colnames(tbl)))
+   checkEqualsNumeric(mean(tbl$phast7), 0.61, tolerance=0.05)
+   checkEqualsNumeric(mean(tbl$phast30), 0.66, tolerance=0.05)
+   checkEqualsNumeric(mean(tbl$phast100), 0.74, tolerance=0.05)
+
+} # test_scoreMotifHitsForConservation
 #------------------------------------------------------------------------------------------------------------------------
 if(!interactive())
    runTests()

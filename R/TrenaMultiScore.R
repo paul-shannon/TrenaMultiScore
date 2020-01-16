@@ -4,7 +4,6 @@
 # 4) score all TFBS for conservation
 # 5) determine distance from TSS for all TFBS
 #------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------
 #' @import methods
 #' @importFrom AnnotationDbi select
 #' @import org.Hs.eg.db
@@ -38,8 +37,11 @@ setGeneric('getGeneHancerRegion', signature='obj', function(obj) standardGeneric
 setGeneric('findOpenChromatin', signature='obj', function(obj, chrom=NA, start=NA, end=NA)
               standardGeneric('findOpenChromatin'))
 setGeneric('getOpenChromatin', signature='obj', function(obj) standardGeneric('getOpenChromatin'))
-setGeneric('getFimoTFBS', signature='obj', function(obj, motifs=NA, fimo.threshold=NA, chrom=NA, start=NA, end=NA)
-              standardGeneric('getFimoTFBS'))
+setGeneric('findFimoTFBS', signature='obj', function(obj, motifs=NA, fimo.threshold=NA, chrom=NA, start=NA, end=NA)
+              standardGeneric('findFimoTFBS'))
+setGeneric('scoreMotifHitsForConservation', signature='obj', function(obj) standardGeneric('scoreMotifHitsForConservation'))
+setGeneric('getMultiScoreTable', signature='obj', function(obj) standardGeneric('getMultiScoreTable'))
+
 #------------------------------------------------------------------------------------------------------------------------
 #' Define an object of class TrenaMultiScore
 #'
@@ -59,6 +61,7 @@ TrenaMultiScore <- function(trenaProject, targetGene, quiet=TRUE)
    setTargetGene(trenaProject, targetGene)
    state <- new.env(parent=emptyenv())
    state$openChromatin <- data.frame()
+   state$fimo <- data.frame()
 
    .TrenaMultiScore(trenaProject=trenaProject, targetGene=targetGene, motifDb=MotifDb,
                     state=state)
@@ -160,7 +163,7 @@ setMethod('getOpenChromatin', 'TrenaMultiScore',
 #' @description
 #' call FimoBatch to get data.frame of all matches above threshold
 #'
-#' @rdname getGeneHancerRegion
+#' @rdname getFimoTFBS
 #'
 #' @param motifs a list of MotifDb items, JASPAR2019 hsapiens by default
 #' @param fimo.threshold 1e-4 by default
@@ -172,9 +175,14 @@ setMethod('getOpenChromatin', 'TrenaMultiScore',
 #'
 #' @export
 #'
-setMethod('getFimoTFBS', 'TrenaMultiScore',
+setMethod('findFimoTFBS', 'TrenaMultiScore',
 
     function(obj, motifs=NA, fimo.threshold=NA, chrom=NA, start=NA, end=NA){
+
+       tbl.fp <- getOpenChromatin(obj)
+
+       if(nrow(tbl.fp) == 0)
+          stop("TrenaMultiScore::getFimoTFBS error: no open chromatin regions previously identified.")
 
        if(is.na(motifs))
            motifs <- query(obj@motifDb, c("sapiens", "jaspar2018"))
@@ -189,12 +197,13 @@ setMethod('getFimoTFBS', 'TrenaMultiScore',
        if(is.na(end))
           end <- tbl.gh$end
 
-       tbl.fp <- getOpenChromatin(obj)
        meme.file <- "tmp.meme"
        export(motifs, con=meme.file, format="meme")
        source("~/github/fimoService/batchMode/fimoBatchTools.R")
-       fimoBatch(tbl.fp, matchThreshold=fimo.threshold, genomeName="hg38", pwmFile=meme.file)
-       }) # getFimoTFBS
+       tbl.fimo <- fimoBatch(tbl.fp, matchThreshold=fimo.threshold, genomeName="hg38", pwmFile=meme.file)
+       obj@state$fimo <- tbl.fimo
+       sprintf("tbl.fimo stored with %d rows, %d columns", nrow(tbl.fimo), ncol(tbl.fimo))
+       }) # findFimoTFBS
 
 #------------------------------------------------------------------------------------------------------------------------
 .queryBrandLabATACseq <- function(chrom.loc, start.loc, end.loc)
@@ -222,4 +231,67 @@ setMethod('getFimoTFBS', 'TrenaMultiScore',
    tbl
 
 } # .queryHintFootprintRegionsFromDatabase
+#------------------------------------------------------------------------------------------------------------------------
+#' add conservation scores to the currently held fimo table
+#'
+#' @description
+#'   adds several conservation scores, each an average, to each motif hit in the already build fimo table
+#'
+#' @rdname scoreMotifHitsForConservation
+#'
+#' @param obj a TrenaMultiScore object
+#' @return a data.frame
+#'
+#' @export
+#'
+setMethod('scoreMotifHitsForConservation', 'TrenaMultiScore',
+
+    function(obj){
+
+      tbl.fimo <- obj@state$fimo
+      if(nrow(tbl.fimo) == 0)
+         stop("TrenaMultiScore::scoreMotifHitsForConservation error: no fimo hits yet identified.")
+
+        # phastCons100way.UCSC.hg38
+        # phastCons30way.UCSC.hg38
+
+
+       tbl.cons <- as.data.frame(gscores(phastCons7way.UCSC.hg38,
+                                         GRanges(tbl.fimo[, c("chrom", "start", "end")])), stringsAsFactors=FALSE)
+       tbl.fimo$phast7 <- round(tbl.cons$default, digits=2)
+
+       tbl.cons <- as.data.frame(gscores(phastCons30way.UCSC.hg38,
+                                         GRanges(tbl.fimo[, c("chrom", "start", "end")])), stringsAsFactors=FALSE)
+       tbl.fimo$phast30 <- round(tbl.cons$default, digits=2)
+
+       tbl.cons <- as.data.frame(gscores(phastCons100way.UCSC.hg38,
+                                         GRanges(tbl.fimo[, c("chrom", "start", "end")])), stringsAsFactors=FALSE)
+       tbl.fimo$phast100 <- round(tbl.cons$default, digits=2)
+
+       rownames(tbl.fimo) <- NULL
+       obj@state$fimo <- tbl.fimo
+       }) # scoreMotifHitsForConservation
+
+#------------------------------------------------------------------------------------------------------------------------
+#' returns the current state of scored motif matches
+#'
+#' @description
+#'   can be called at any time
+#'
+#' @rdname getMultiScoreTable
+#'
+#' @param obj a TrenaMultiScore object
+#'
+#' @return a data.frame
+#'
+#' @export
+#'
+setMethod('getMultiScoreTable', 'TrenaMultiScore',
+
+    function(obj){
+
+      invisible(obj@state$fimo)
+
+      }) # getMultiScoreTable
+
 #------------------------------------------------------------------------------------------------------------------------
