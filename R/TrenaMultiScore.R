@@ -41,7 +41,8 @@ setGeneric('findFimoTFBS', signature='obj', function(obj, motifs=NA, fimo.thresh
               standardGeneric('findFimoTFBS'))
 setGeneric('scoreMotifHitsForConservation', signature='obj', function(obj) standardGeneric('scoreMotifHitsForConservation'))
 setGeneric('getMultiScoreTable', signature='obj', function(obj) standardGeneric('getMultiScoreTable'))
-
+setGeneric('getTargetGeneInfo', signature='obj', function(obj) standardGeneric('getTargetGeneInfo'))
+setGeneric('addDistanceToTSS', signature='obj', function(obj) standardGeneric('addDistanceToTSS'))
 #------------------------------------------------------------------------------------------------------------------------
 #' Define an object of class TrenaMultiScore
 #'
@@ -130,12 +131,14 @@ setMethod('findOpenChromatin', 'TrenaMultiScore',
             }
         if("TrenaProjectErythropoiesis" %in% is(getProject(obj))){
            obj@state$openChromatin <- .queryBrandLabATACseq(chrom, start, end)
+           message(sprintf("regions of open chromatin: %d", nrow(obj@state$openChromatin)))
            }
         else if("TrenaProjectAD" %in% is(getProject(obj))){
            obj@state$openChromatin <- .queryHintFootprintRegionsFromDatabase("brain_hint_16", chrom, start, end)
+           message(sprintf("regions of open chromatin: %d", nrow(obj@state$openChromatin)))
            }
-         else stop(sprintf("no support for open chromatin retrieval in %s", getProject(ob)@projectName))
-         })
+        else stop(sprintf("no support for open chromatin retrieval in %s", getProject(obj)@projectName))
+        })
 
 
 #------------------------------------------------------------------------------------------------------------------------
@@ -293,5 +296,54 @@ setMethod('getMultiScoreTable', 'TrenaMultiScore',
       invisible(obj@state$fimo)
 
       }) # getMultiScoreTable
+
+#------------------------------------------------------------------------------------------------------------------------
+#' append 'TSS' column to the accumulating table
+#'
+#' @description
+#'   append 'TSS' column to the accumulating table, recording distance from the main
+#'   transcript's TSS to the start of the motif hit, negative values for upstream locations
+#'
+#' @rdname addDistanceToTSS
+#'
+#' @param obj a TrenaMultiScore object
+#'
+#' @return None
+#'
+#' @export
+#'
+setMethod('addDistanceToTSS', 'TrenaMultiScore',
+
+    function(obj){
+
+      coi <- c("tss", "strand", "chrom", "start", "end")
+      targetGene.info <- as.list(getTranscriptsTable(getProject(obj))[coi])
+      tbl <- getMultiScoreTable(obj)
+      tss <- (targetGene.info$tss - tbl$start)  * (targetGene.info$strand) * -1
+      tbl$tss <- tss
+      obj@state$fimo <- tbl
+      }) # addDistanceToTSS
+
+#------------------------------------------------------------------------------------------------------------------------
+#' get basic stats on the primary transcript
+#'
+#' @description
+#'   get basic stats on the primary transcript
+
+#' @rdname getTargetGeneInfo
+#'
+#' @param obj a TrenaMultiScore object
+#'
+#' @return None
+#'
+#' @export
+#'
+setMethod('getTargetGeneInfo', 'TrenaMultiScore',
+
+    function(obj){
+
+      coi <- c("tss", "strand", "chrom", "start", "end")
+      as.list(getTranscriptsTable(getProject(obj))[coi])
+      }) # getTargetGeneInfo
 
 #------------------------------------------------------------------------------------------------------------------------

@@ -19,6 +19,8 @@ runTests <- function()
    test_findOpenChromatin()
    test_findFimoTFBS()
    test_scoreMotifHitsForConservation()
+   test_getTargetGeneInfo()
+   test_addDistanceToTSS()
 
 } # runTests
 #------------------------------------------------------------------------------------------------------------------------
@@ -104,6 +106,36 @@ test_scoreMotifHitsForConservation <- function()
    checkEqualsNumeric(mean(tbl$phast100), 0.74, tolerance=0.05)
 
 } # test_scoreMotifHitsForConservation
+#------------------------------------------------------------------------------------------------------------------------
+test_getTargetGeneInfo <- function()
+{
+   message(sprintf("--- test_getTargetGeneInfo"))
+   x <- getTargetGeneInfo(tmse)
+   checkTrue(all(c("tss", "strand", "chrom", "start", "end") %in% names(x)))
+   checkEquals(x$tss, 128493185)
+   checkEquals(x$strand, -1)
+
+} # test_getTargetGeneInfo
+#------------------------------------------------------------------------------------------------------------------------
+test_addDistanceToTSS <- function()
+{
+   message(sprintf("--- test_addDistanceToTSS"))
+
+   tss <- getTargetGeneInfo(tmse)$tss
+   shoulder <- 5000
+   findOpenChromatin(tmse, "chr3", start=tss-(2*shoulder), end=tss+shoulder)
+
+   findFimoTFBS(tmse, fimo.threshold=1e-5)
+   tbl.fimo <- getMultiScoreTable(tmse)
+   checkEquals(dim(tbl.fimo), c(20, 9))
+
+   scoreMotifHitsForConservation(tmse)
+   addDistanceToTSS(tmse)
+
+   tbl <- getMultiScoreTable(tmse)
+   checkEquals(head(tbl$tss), c(5220, 5218, 5182, -4584, -4591, -4592))
+
+} # test_addDistanceToTSS
 #------------------------------------------------------------------------------------------------------------------------
 if(!interactive())
    runTests()
