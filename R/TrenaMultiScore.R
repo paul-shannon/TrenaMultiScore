@@ -14,6 +14,7 @@
 #' @import phastCons100way.UCSC.hg38
 #' @import phastCons30way.UCSC.hg38
 #' @import MotifDb
+#' @import annotatr
 #'
 #' @title TrenaMultiScore-class
 #'
@@ -44,6 +45,8 @@ setGeneric('getMultiScoreTable', signature='obj', function(obj) standardGeneric(
 setGeneric('getTargetGeneInfo', signature='obj', function(obj) standardGeneric('getTargetGeneInfo'))
 setGeneric('addDistanceToTSS', signature='obj', function(obj) standardGeneric('addDistanceToTSS'))
 setGeneric('scoreMotifHitsForGeneHancer', signature='obj', function(obj) standardGeneric('scoreMotifHitsForGeneHancer'))
+setGeneric('addGeneExpressionCorrelations', signature='obj', function(obj, mtx) standardGeneric('addGeneExpressionCorrelations'))
+setGeneric('addGenicAnnotations', signature='obj', function(obj) standardGeneric('addGenicAnnotations'))
 #------------------------------------------------------------------------------------------------------------------------
 #' Define an object of class TrenaMultiScore
 #'
@@ -349,8 +352,7 @@ setMethod('getTargetGeneInfo', 'TrenaMultiScore',
       }) # getTargetGeneInfo
 
 #------------------------------------------------------------------------------------------------------------------------
-# setGeneric('addGeneHancerScores', signature='obj', function(obj) standardGeneric('addGeneHancerScores'))
-#' add conservation scores to the currently held fimo table
+#' attach a genehancer score to each motif hit, 0 if none
 #'
 #' @description
 #'   adds several conservation scores, each an average, to each motif hit in the already build fimo table
@@ -378,5 +380,77 @@ setMethod('scoreMotifHitsForGeneHancer', 'TrenaMultiScore',
       rownames(tbl.fimo) <- NULL
       obj@state$fimo <- tbl.fimo
       }) # scoreMotifHitsForGeneHancer
+
+#------------------------------------------------------------------------------------------------------------------------
+#' add a tf/targetGene correlations score for those TFs also in the expression matrix
+#'
+#' @description
+#' add a tf/targetGene correlations score for those TFs also in the expression matrix
+#'
+#' @rdname addGeneExpressionCorrelations
+#'
+#' @param obj a TrenaMultiScore object
+#' @param mtx a numerical matrix, genes are rownames, samples are colnames
+#' @return None
+#'
+#' @export
+#'
+setMethod('addGeneExpressionCorrelations', 'TrenaMultiScore',
+
+    function(obj, mtx){
+
+      tbl.fimo <- obj@state$fimo
+      if(nrow(tbl.fimo) == 0)
+         stop("TrenaMultiScore::addGeneExpressionCorrelations error: no fimo hits yet identified.")
+
+      f <- function(tf){
+         if(tf %in% rownames(mtx))
+           return(cor(mtx[obj@targetGene,], mtx[tf,]))
+         else return(0)
+         }
+
+      cor <- unlist(lapply(tbl.fimo$tf, f))
+      cor <- round(cor, digits=2)
+      tbl.fimo$cor <- cor
+      obj@state$fimo <- tbl.fimo
+      }) # addGeneExpressionCorrelations
+
+#------------------------------------------------------------------------------------------------------------------------
+#' add intron, exon, utr, promoter, etc annotations
+#'
+#' @description
+#' add intron, exon, utr, promoter, etc annotations
+#'
+#' @rdname addGenicAnnotations
+#'
+#' @param obj a TrenaMultiScore object
+#' @param mtx a numerical matrix, genes are rownames, samples are colnames
+#' @return None
+#'
+#' @export
+#'
+setMethod('addGenicAnnotations', 'TrenaMultiScore',
+
+    function(obj){
+
+      tbl.fimo <- obj@state$fimo
+      if(nrow(tbl.fimo) == 0)
+         stop("TrenaMultiScore::addGenicAnnotations error: no fimo hits yet identified.")
+
+      existing.colnames <- colnames(tbl.fimo)
+      gr <- GRanges(tbl.fimo)
+      anno <- build_annotations(genome="hg38", annotations=c("hg38_basicgenes", "hg38_genes_intergenic"))
+      gr.annoResults <- annotate_regions(regions=gr, annotations=anno, ignore.strand=TRUE, quiet=FALSE)
+      tbl.fimo <- as.data.frame(gr.annoResults)
+      coi <- c(existing.colnames, "annot.symbol", "annot.type")
+      coi[1] <- "seqnames"  # bioc-speak for chromosome
+      tbl.fimo <- unique(tbl.fimo[,coi])
+      dups <- which(duplicated(tbl.fimo[, 1:4]))   # just keep one instance each of chrom:start-end, tf
+      if(length(dups) > 0)
+         tbl.fimo <- tbl.fimo[-dups,]
+      colnames(tbl.fimo)[1] <- "chrom"
+      tbl.fimo$chrom <- as.character(tbl.fimo$chrom)
+      obj@state$fimo <- tbl.fimo
+      }) # addGenicAnnotations
 
 #------------------------------------------------------------------------------------------------------------------------

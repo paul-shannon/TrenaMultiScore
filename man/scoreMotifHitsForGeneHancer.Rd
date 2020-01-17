@@ -2,7 +2,7 @@
 % Please edit documentation in R/TrenaMultiScore.R
 \name{scoreMotifHitsForGeneHancer,TrenaMultiScore-method}
 \alias{scoreMotifHitsForGeneHancer,TrenaMultiScore-method}
-\title{add conservation scores to the currently held fimo table}
+\title{attach a genehancer score to each motif hit, 0 if none}
 \usage{
 \S4method{scoreMotifHitsForGeneHancer}{TrenaMultiScore}(obj)
 }

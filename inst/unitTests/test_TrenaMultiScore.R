@@ -22,6 +22,7 @@ runTests <- function()
    test_getTargetGeneInfo()
    test_addDistanceToTSS()
    test_scoreMotifHitsForGeneHancer()
+   test_addGenicAnnotations()
 
 } # runTests
 #------------------------------------------------------------------------------------------------------------------------
@@ -163,6 +164,20 @@ test_scoreMotifHitsForGeneHancer <- function()
 
 } # test_scoreMotifHitsForGeneHancer
 #------------------------------------------------------------------------------------------------------------------------
+test_addGenicAnnotations <- function()
+{
+   message(sprintf("--- test_addGenicAnnotations"))
+
+   findOpenChromatin(tmse, "chr3", start=128481000, end=128489000)
+   findFimoTFBS(tmse, fimo.threshold=1e-5)
+
+   scoreMotifHitsForConservation(tmse)
+   addGenicAnnotations(tmse)
+   tbl.fimo <- getMultiScoreTable(tmse)
+   checkEquals(dim(tbl.fimo), c(13, 14))
+
+} # test_addGenicAnnotations
+#------------------------------------------------------------------------------------------------------------------------
 test_erythropoeisis.hoxb4 <- function()
 {
    message(sprintf("--- test_erythropoeisis.hoxb4"))
@@ -173,8 +188,17 @@ test_erythropoeisis.hoxb4 <- function()
    findFimoTFBS(tms.hoxb4, fimo.threshold=1e-3)
    scoreMotifHitsForConservation(tms.hoxb4)
    scoreMotifHitsForGeneHancer(tms.hoxb4)
+   addDistanceToTSS(tms.hoxb4)
+
+   mtx <- getExpressionMatrix(tpe, "brandLabDifferentiationTimeCourse-27171x28")
+   addGeneExpressionCorrelations(tms.hoxb4, mtx)
+   addGenicAnnotations(tms.hoxb4)
    tbl <- getMultiScoreTable(tms.hoxb4)
-   checkEquals(nrow(subset(tbl, gh > 0 & tf=="TBX15")), 4)
+   tbl.sub.neg <-  subset(tbl, p.value < 0.0001 & phast100 > 0.8 & cor < -0.4 & gh > 0)
+   checkEquals(sort(unique(tbl.sub.neg$tf)), c("IRF1", "MXI1", "RXRG"))
+   tbl.sub.pos <-
+      subset(tbl, p.value < 0.00001 & phast100 > 0.8 & cor > 0.8 & gh > 0)
+   checkEquals(sort(unique(tbl.sub.pos$tf)), c("MYC", "STAT1", "ZNF263"))
 
 } # test_erythropoeisis.hoxb4
 #------------------------------------------------------------------------------------------------------------------------
