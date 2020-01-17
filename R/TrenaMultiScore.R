@@ -298,7 +298,15 @@ setMethod('getMultiScoreTable', 'TrenaMultiScore',
 
     function(obj){
 
-      invisible(obj@state$fimo)
+      tbl.fimo <- obj@state$fimo
+
+      if("motif_id" %in% colnames(tbl.fimo)){ # can be quite long, move it to the end
+         current.index <- grep("motif_id", colnames(tbl.fimo))
+         colnames.in.preferred.order <- c(colnames(tbl.fimo)[-current.index], "motif_id")
+         tbl.fimo <- tbl.fimo[,colnames.in.preferred.order]
+         } # motif_id column
+
+      invisible(tbl.fimo)
 
       }) # getMultiScoreTable
 
@@ -439,17 +447,18 @@ setMethod('addGenicAnnotations', 'TrenaMultiScore',
 
       existing.colnames <- colnames(tbl.fimo)
       gr <- GRanges(tbl.fimo)
-      anno <- build_annotations(genome="hg38", annotations=c("hg38_basicgenes", "hg38_genes_intergenic"))
+        # anno <- build_annotations(genome="hg38", annotations=c("hg38_basicgenes", "hg38_genes_intergenic"))
+      anno <- get(load(system.file(package="TrenaMultiScore", "extdata", "genomeAnnotations.RData")))
       gr.annoResults <- annotate_regions(regions=gr, annotations=anno, ignore.strand=TRUE, quiet=FALSE)
-      tbl.fimo <- as.data.frame(gr.annoResults)
+      tbl.anno <- as.data.frame(gr.annoResults)
       coi <- c(existing.colnames, "annot.symbol", "annot.type")
       coi[1] <- "seqnames"  # bioc-speak for chromosome
-      tbl.fimo <- unique(tbl.fimo[,coi])
-      dups <- which(duplicated(tbl.fimo[, 1:4]))   # just keep one instance each of chrom:start-end, tf
-      if(length(dups) > 0)
-         tbl.fimo <- tbl.fimo[-dups,]
-      colnames(tbl.fimo)[1] <- "chrom"
-      tbl.fimo$chrom <- as.character(tbl.fimo$chrom)
+      tbl.aggregated <- aggregate(cbind(annot.type, annot.symbol) ~ seqnames+start+end+strand+tf, data=tbl.anno, function(x) paste(unique(x), collapse=","))
+      tbl.aggregated$annot.type <- gsub("hg38_genes_", "", tbl.aggregated$annot.type)
+      colnames(tbl.aggregated)[1] <- "chrom"
+      tbl.aggregated$chrom <- as.character(tbl.aggregated$chrom)
+
+      tbl.fimo <- merge(tbl.fimo, tbl.aggregated)
       obj@state$fimo <- tbl.fimo
       }) # addGenicAnnotations
 

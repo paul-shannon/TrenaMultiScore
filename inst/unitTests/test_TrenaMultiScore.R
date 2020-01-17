@@ -169,12 +169,16 @@ test_addGenicAnnotations <- function()
    message(sprintf("--- test_addGenicAnnotations"))
 
    findOpenChromatin(tmse, "chr3", start=128481000, end=128489000)
-   findFimoTFBS(tmse, fimo.threshold=1e-5)
+   getOpenChromatin(tmse)
+   findFimoTFBS(tmse, fimo.threshold=1e-3)
+   addDistanceToTSS(tmse)
 
    scoreMotifHitsForConservation(tmse)
    addGenicAnnotations(tmse)
    tbl.fimo <- getMultiScoreTable(tmse)
-   checkEquals(dim(tbl.fimo), c(13, 14))
+   checkEquals(ncol(tbl.fimo), 15)
+   checkTrue(all(c("annot.type", "annot.symbol") %in% colnames(tbl.fimo)))
+   checkTrue(nrow(tbl.fimo) > 300)
 
 } # test_addGenicAnnotations
 #------------------------------------------------------------------------------------------------------------------------
