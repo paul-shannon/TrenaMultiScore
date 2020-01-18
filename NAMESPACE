@@ -2,6 +2,7 @@
 
 export(TrenaMultiScore)
 exportClasses(TrenaMultiScore)
+exportMethods(addChIP)
 exportMethods(addDistanceToTSS)
 exportMethods(addGeneExpressionCorrelations)
 exportMethods(addGenicAnnotations)

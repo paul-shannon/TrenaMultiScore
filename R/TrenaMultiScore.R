@@ -47,6 +47,7 @@ setGeneric('addDistanceToTSS', signature='obj', function(obj) standardGeneric('a
 setGeneric('scoreMotifHitsForGeneHancer', signature='obj', function(obj) standardGeneric('scoreMotifHitsForGeneHancer'))
 setGeneric('addGeneExpressionCorrelations', signature='obj', function(obj, mtx) standardGeneric('addGeneExpressionCorrelations'))
 setGeneric('addGenicAnnotations', signature='obj', function(obj) standardGeneric('addGenicAnnotations'))
+setGeneric('addChIP', signature='obj', function(obj) standardGeneric('addChIP'))
 #------------------------------------------------------------------------------------------------------------------------
 #' Define an object of class TrenaMultiScore
 #'
@@ -193,7 +194,7 @@ setMethod('findFimoTFBS', 'TrenaMultiScore',
           stop("TrenaMultiScore::getFimoTFBS error: no open chromatin regions previously identified.")
 
        if(is.na(motifs))
-           motifs <- query(obj@motifDb, c("sapiens", "jaspar2018"))
+           motifs <- query(obj@motifDb, c("sapiens"), c("hocomoco", "jaspar2018"))
 
        if(is.na(fimo.threshold))
           fimo.threshold <- 1e-4
@@ -306,7 +307,7 @@ setMethod('getMultiScoreTable', 'TrenaMultiScore',
          tbl.fimo <- tbl.fimo[,colnames.in.preferred.order]
          } # motif_id column
 
-      invisible(tbl.fimo)
+      invisible(unique(tbl.fimo))
 
       }) # getMultiScoreTable
 
@@ -461,5 +462,51 @@ setMethod('addGenicAnnotations', 'TrenaMultiScore',
       tbl.fimo <- merge(tbl.fimo, tbl.aggregated)
       obj@state$fimo <- tbl.fimo
       }) # addGenicAnnotations
+
+#------------------------------------------------------------------------------------------------------------------------
+#' add 1 if a motif hit intersects a ChIP-seq hit, otherwise 0.
+#'
+#' @description
+#' add 1 if a motif hit intersects a ChIP-seq hit, otherwise 0.  full-with ChIP peaks are used.
+#'
+#' @rdname addChIP
+#'
+#' @param obj a TrenaMultiScore object
+#' @param mtx a numerical matrix, genes are rownames, samples are colnames
+#' @return None
+#'
+#' @export
+#'
+setMethod('addChIP', 'TrenaMultiScore',
+
+    function(obj){
+
+      tbl.fimo <- obj@state$fimo
+      if(nrow(tbl.fimo) == 0)
+         stop("TrenaMultiScore::addChIP error: no fimo hits yet identified.")
+
+      has.ChIP <- rep(FALSE, nrow(tbl.fimo))
+      chrom <- tbl.fimo$chrom[1]
+      start <- min(tbl.fimo$start) - 1000
+      end <- max(tbl.fimo$end) + 1000
+      tbl.chip <- getChipSeq(getProject(obj), chrom, start, end)
+      tbl.chip <- subset(tbl.chip, tf %in% tbl.fimo$tf)
+      tbl.ov <- as.data.frame(findOverlaps(GRanges(tbl.fimo), GRanges(tbl.chip), type="any"))
+      tbl.combined <- cbind(tbl.fimo[tbl.ov$queryHits,], tbl.chip[tbl.ov$subjectHits,])
+      colnames(tbl.combined)[max(grep("tf", colnames(tbl.combined)))] <- "tf.chip"
+      tbl.fimoWithChip <- subset(tbl.combined, tf==tf.chip)
+          # some chip hits are reported in multiple cell lines, which we don't care about yet
+          # remove them
+      tbl.fimoWithChip <- tbl.fimoWithChip[-which(duplicated(tbl.fimoWithChip[, 1:4])),]
+      rownames(tbl.fimoWithChip) <- NULL
+      sig.chip <- with(tbl.fimoWithChip, sprintf("%s:%d-%d.%s", chrom, start, end, tf))
+      sig.fimo <- with(tbl.fimo, sprintf("%s:%d-%d.%s", chrom, start, end, tf))
+      chip.hits <- match(sig.chip, sig.fimo)
+      if(length(chip.hits) > 0)
+         has.ChIP[chip.hits] <- TRUE
+
+      tbl.fimo$chip <- has.ChIP
+      obj@state$fimo <- tbl.fimo
+      }) # addChIP
 
 #------------------------------------------------------------------------------------------------------------------------

@@ -175,12 +175,32 @@ test_addGenicAnnotations <- function()
 
    scoreMotifHitsForConservation(tmse)
    addGenicAnnotations(tmse)
+
    tbl.fimo <- getMultiScoreTable(tmse)
    checkEquals(ncol(tbl.fimo), 15)
    checkTrue(all(c("annot.type", "annot.symbol") %in% colnames(tbl.fimo)))
    checkTrue(nrow(tbl.fimo) > 300)
 
 } # test_addGenicAnnotations
+#------------------------------------------------------------------------------------------------------------------------
+test_addChIP <- function()
+{
+   message(sprintf("--- test_addChip"))
+
+   findOpenChromatin(tmse, "chr3", start=128481000, end=128489000)
+   tbl.oc <- getOpenChromatin(tmse)
+   checkEquals(nrow(tbl.oc), 8)
+
+   findFimoTFBS(tmse, fimo.threshold=1e-5)
+   tbl.fimo <- getMultiScoreTable(tmse)
+   checkEquals(dim(tbl.fimo), c(48, 9))
+   tbl.fimo
+   addChIP(tmse)
+   tbl.fimo <- getMultiScoreTable(tmse)
+   checkEquals(dim(tbl.fimo), c(48, 10))
+   checkTrue(nrow(subset(tbl.fimo, chip)) > 15)
+
+} # test_addChIP
 #------------------------------------------------------------------------------------------------------------------------
 test_erythropoeisis.hoxb4 <- function()
 {
@@ -205,6 +225,26 @@ test_erythropoeisis.hoxb4 <- function()
    checkEquals(sort(unique(tbl.sub.pos$tf)), c("MYC", "STAT1", "ZNF263"))
 
 } # test_erythropoeisis.hoxb4
+#------------------------------------------------------------------------------------------------------------------------
+test_AD.trem2 <- function()
+{
+   message(sprintf("--- test_AD.trems"))
+
+   tms.trem2 <- TrenaMultiScore(tpad, "TREM2");
+   getGeneHancerRegion(tms.trem2)
+   findOpenChromatin(tms.trem2)
+   findFimoTFBS(tms.trem2, fimo.threshold=1e-3)
+   scoreMotifHitsForConservation(tms.trem2)
+   scoreMotifHitsForGeneHancer(tms.trem2)
+   addDistanceToTSS(tms.trem2)
+   addChIP(tms.trem2)
+
+   mtx <- get(load("~/github/TrenaProjectAD/inst/extdata/expression/mayo.tcx.16969x262.covariateCorrection.log+scale.RData"))
+   addGeneExpressionCorrelations(tms.trem2, mtx)
+   addGenicAnnotations(tms.trem2)
+   tbl <- getMultiScoreTable(tms.trem2)
+
+} # test_AD.trem2
 #------------------------------------------------------------------------------------------------------------------------
 
 if(!interactive())
