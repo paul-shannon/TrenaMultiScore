@@ -23,6 +23,7 @@ runTests <- function()
    test_addDistanceToTSS()
    test_scoreMotifHitsForGeneHancer()
    test_addGenicAnnotations()
+   test_addChIP()
 
 } # runTests
 #------------------------------------------------------------------------------------------------------------------------
@@ -78,13 +79,13 @@ test_findFimoTFBS <- function()
 
    findFimoTFBS(tmse)
    tbl.fimo <- getMultiScoreTable(tmse)
-   checkEquals(dim(tbl.fimo), c(2, 9))
+   checkEquals(dim(tbl.fimo), c(12, 9))
    checkTrue(all(c("SP2", "ZNF263") %in% tbl.fimo$tf))
 
    findFimoTFBS(tmse, fimo.threshold=1e-3)
    tbl.fimo <- getMultiScoreTable(tmse)
 
-   checkTrue(nrow(tbl.fimo) > 30)
+   checkTrue(nrow(tbl.fimo) > 90)
    checkTrue(all(c("SP2", "ZNF263", "CEBPB", "SP1") %in% tbl.fimo$tf)) # and many others
 
 } # test_findFimoTFBS
@@ -96,16 +97,16 @@ test_scoreMotifHitsForConservation <- function()
    findOpenChromatin(tmse, "chr3", start=128481000, end=128489000)
    findFimoTFBS(tmse, fimo.threshold=1e-5)
    tbl.fimo <- getMultiScoreTable(tmse)
-   checkEquals(dim(tbl.fimo), c(5, 9))
+   checkEquals(dim(tbl.fimo), c(48, 9))
 
    scoreMotifHitsForConservation(tmse)
 
    tbl <- getMultiScoreTable(tmse)
-   checkEquals(dim(tbl), c(5, 12))
+   checkEquals(dim(tbl), c(48, 12))
    checkTrue(all(c("phast7", "phast30", "phast100") %in% colnames(tbl)))
-   checkEqualsNumeric(mean(tbl$phast7), 0.61, tolerance=0.05)
+   checkEqualsNumeric(mean(tbl$phast7), 0.57, tolerance=0.05)
    checkEqualsNumeric(mean(tbl$phast30), 0.66, tolerance=0.05)
-   checkEqualsNumeric(mean(tbl$phast100), 0.74, tolerance=0.05)
+   checkEqualsNumeric(mean(tbl$phast100), 0.77, tolerance=0.05)
 
 } # test_scoreMotifHitsForConservation
 #------------------------------------------------------------------------------------------------------------------------
@@ -129,13 +130,13 @@ test_addDistanceToTSS <- function()
 
    findFimoTFBS(tmse, fimo.threshold=1e-5)
    tbl.fimo <- getMultiScoreTable(tmse)
-   checkEquals(dim(tbl.fimo), c(20, 9))
+   checkEquals(dim(tbl.fimo), c(123, 9))
 
    scoreMotifHitsForConservation(tmse)
    addDistanceToTSS(tmse)
 
    tbl <- getMultiScoreTable(tmse)
-   checkEquals(head(tbl$tss), c(5220, 5218, 5182, -4584, -4591, -4592))
+   checkEquals(head(sort(tbl$tss)), c(-4770, -4769, -4769, -4768, -4768, -4768))
 
 } # test_addDistanceToTSS
 #------------------------------------------------------------------------------------------------------------------------
@@ -160,7 +161,7 @@ test_scoreMotifHitsForGeneHancer <- function()
      # not fall within a genehancer region, then it gets a zero score. check that
      # also check to see that multiple non-zero scores were picked up
    checkTrue(0 %in% gh.values)
-   checkTrue(length(unique(gh.values)) == 4)
+   checkTrue(length(unique(gh.values)) == 5)
 
 } # test_scoreMotifHitsForGeneHancer
 #------------------------------------------------------------------------------------------------------------------------
