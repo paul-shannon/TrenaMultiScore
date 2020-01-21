@@ -2,6 +2,8 @@ library(TrenaMultiScore)
 library(TrenaProjectErythropoiesis)
 library(TrenaProjectAD)
 library(RUnit)
+library(factoextra)
+
 #------------------------------------------------------------------------------------------------------------------------
 if(!exists("tmse")) {
    message(sprintf("--- creating instance of TrenaMultiScore"))
@@ -227,6 +229,142 @@ test_erythropoeisis.hoxb4 <- function()
 
 } # test_erythropoeisis.hoxb4
 #------------------------------------------------------------------------------------------------------------------------
+# both haney and krumsiek report that GATA1 regulates TAL1 (aka SCL)
+# can we see that?  brandLabDifferentiationTimeCourse-27171x28 shows 0.75 correlation
+test_erythropoeisis.tal1 <- function()
+{
+   message(sprintf("--- test_erythropoeisis.tal1"))
+
+   tms.tal1 <- TrenaMultiScore(tpe, "TAL1");
+   getGeneHancerRegion(tms.tal1)   # 190kb
+   findOpenChromatin(tms.tal1)
+   findFimoTFBS(tms.tal1, fimo.threshold=1e-3)
+   scoreMotifHitsForConservation(tms.tal1)
+   scoreMotifHitsForGeneHancer(tms.tal1)
+   addDistanceToTSS(tms.tal1)
+
+   mtx <- getExpressionMatrix(tpe, "brandLabDifferentiationTimeCourse-27171x28")
+   addGeneExpressionCorrelations(tms.tal1, mtx)
+   addGenicAnnotations(tms.tal1)
+   addChIP(tms.tal1)
+
+   tbl <- getMultiScoreTable(tms.tal1)
+   tbl$cor[which(is.na(tbl$cor))] <- 0
+   tbl$motifScore <- round(-log10(tbl$p.value), 2)
+
+   dim(tbl)
+   cor.spread <- fivenum(abs(tbl$cor))
+   cor.threshold <- cor.spread[4]
+   cor.threshold <- 0.9 * cor.spread[5]
+   tbl <- subset(tbl, abs(cor) >= cor.threshold)
+   dim(tbl)
+
+   tfoi <- unique(tbl$tf)
+   length(tfoi)
+   tblc <- data.frame(row.names=tfoi)
+   tblc$cor <- as.numeric(lapply(tfoi, function(TF) mean(abs(subset(tbl, tf==TF)$cor))))
+   tblc$gh <-  as.numeric(lapply(tfoi, function(TF) mean(subset(tbl, tf==TF)$gh)))
+   tblc$count <- as.numeric(lapply(tfoi, function(TF) nrow(subset(tbl, tf==TF))))
+   tblc$chip <- as.numeric(lapply(tfoi, function(TF) sum(subset(tbl, tf==TF)$chip)))
+   tblc$fimo <- as.numeric(lapply(tfoi, function(TF) mean(subset(tbl, tf==TF)$motifScore)))
+   tblc$phast <- as.numeric(lapply(tfoi, function(TF) mean(as.numeric(as.matrix(subset(tbl, tf==TF)[, c("phast7", "phast30", "phast100")])))))
+   #tblc$tss   <- as.numeric(lapply(tfoi, function(TF) mean(abs(subset(tbl, tf==TF)$tss))))
+
+
+   mtx <- as.matrix(tblc)
+
+   pca <- prcomp(mtx, scale=TRUE)
+   library(factoextra)
+   fviz_eig(pca)
+
+  fviz_pca_ind(pca,
+               col.ind = "cos2", # Color by the quality of representation
+               gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+               repel = TRUE     # Avoid text overlapping
+               )
+
+  fviz_pca_var(pca,
+               col.var = "contrib", # Color by contributions to the PC
+               gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+               repel = TRUE     # Avoid text overlapping
+               )
+
+   fviz_pca_biplot(pca, repel = TRUE,
+                   col.var = "#2E9FDF", # Variables color
+                   col.ind = "#696969"  # Individuals color
+                   )
+
+
+} # test_erythropoeisis.tal1
+#------------------------------------------------------------------------------------------------------------------------
+test_erythropoeisis.gata2 <- function()
+{
+   message(sprintf("--- test_erythropoeisis.gata2"))
+
+   tms.gata2 <- TrenaMultiScore(tpe, "GATA2");
+   getGeneHancerRegion(tms.gata2)   # 190kb
+   findOpenChromatin(tms.gata2)
+   findFimoTFBS(tms.gata2, fimo.threshold=1e-5)
+   scoreMotifHitsForConservation(tms.gata2)
+   scoreMotifHitsForGeneHancer(tms.gata2)
+   addDistanceToTSS(tms.gata2)
+
+   mtx <- getExpressionMatrix(tpe, "brandLabDifferentiationTimeCourse-27171x28")
+   addGeneExpressionCorrelations(tms.gata2, mtx)
+   addGenicAnnotations(tms.gata2)
+   addChIP(tms.gata2)
+
+   tbl <- getMultiScoreTable(tms.gata2)
+   table(tbl$chip)
+   tbl$cor[which(is.na(tbl$cor))] <- 0
+   tbl$motifScore <- round(-log10(tbl$p.value), 2)
+
+   dim(tbl)
+   cor.spread <- fivenum(abs(tbl$cor))
+   cor.threshold <- cor.spread[3]
+   #cor.threshold <- 0.7 * cor.spread[5]
+   tbl <- subset(tbl, abs(cor) >= cor.threshold)
+   dim(tbl)
+
+   tfoi <- unique(tbl$tf)
+   length(tfoi)
+   tblc <- data.frame(row.names=tfoi)
+   #tblc$absCor <- as.numeric(lapply(tfoi, function(TF) mean(abs(subset(tbl, tf==TF)$cor))))
+   #tblc$cor <- as.numeric(lapply(tfoi, function(TF) mean(subset(tbl, tf==TF)$cor)))
+   tblc$gh <-  round(as.numeric(lapply(tfoi, function(TF) mean(subset(tbl, tf==TF)$gh))),0)
+   tblc$count <- as.numeric(lapply(tfoi, function(TF) nrow(subset(tbl, tf==TF))))
+   tblc$chip <- round(as.numeric(lapply(tfoi, function(TF) mean(subset(tbl, tf==TF)$chip))),0)
+   tblc$fimo <- round(as.numeric(lapply(tfoi, function(TF) mean(subset(tbl, tf==TF)$motifScore))),2)
+   tblc$phast <- round(as.numeric(lapply(tfoi,
+           function(TF) mean(as.numeric(as.matrix(subset(tbl, tf==TF)[, c("phast7", "phast30", "phast100")]))))),2)
+   #tblc$tss   <- as.numeric(lapply(tfoi, function(TF) mean(abs(subset(tbl, tf==TF)$tss))))
+
+   mtx <- as.matrix(tblc)
+
+   pca <- prcomp(mtx, scale=TRUE)
+   library(factoextra)
+   fviz_eig(pca)
+
+   fviz_pca_ind(pca,
+                col.ind = "cos2", # Color by the quality of representation
+                gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+                repel = FALSE     # Avoid text overlapping
+                )
+
+   fviz_pca_var(pca,
+                col.var = "contrib", # Color by contributions to the PC
+                gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+                repel = TRUE     # Avoid text overlapping
+                )
+
+   fviz_pca_biplot(pca, repel = TRUE,
+                   col.var = "red",     # #2E9FDF", # Variables color
+                   col.ind = "#696969"  # Individuals color
+                   )
+
+
+} # test_erythropoeisis.gata2
+#------------------------------------------------------------------------------------------------------------------------
 test_AD.trem2 <- function()
 {
    message(sprintf("--- test_AD.trems"))
@@ -235,15 +373,90 @@ test_AD.trem2 <- function()
    getGeneHancerRegion(tms.trem2)
    findOpenChromatin(tms.trem2)
    findFimoTFBS(tms.trem2, fimo.threshold=1e-3)
+   addChIP(tms.trem2)
    scoreMotifHitsForConservation(tms.trem2)
    scoreMotifHitsForGeneHancer(tms.trem2)
+   addGenicAnnotations(tms.trem2)
    addDistanceToTSS(tms.trem2)
-   addChIP(tms.trem2)
-
    mtx <- get(load("~/github/TrenaProjectAD/inst/extdata/expression/mayo.tcx.16969x262.covariateCorrection.log+scale.RData"))
    addGeneExpressionCorrelations(tms.trem2, mtx)
-   addGenicAnnotations(tms.trem2)
-   tbl <- getMultiScoreTable(tms.trem2)
+
+   tbl.raw <- getMultiScoreTable(tms.trem2)
+   dim(tbl.raw)
+   tbl <- subset(tbl.raw, chip | p.value <= 1e-4)
+   dim(tbl)
+   length(unique(tbl$tf))
+
+   table(tbl$chip)
+
+   tbl$cor[which(is.na(tbl$cor))] <- 0
+   tbl$motifScore <- round(-log10(tbl$p.value), 2)
+
+   dim(tbl)
+   hist(abs(tbl$cor))
+   tbl <- subset(tbl, abs(cor) >= 0.1)
+   dim(tbl)
+
+   tfoi <- unique(tbl$tf)
+   length(tfoi)
+   tblc <- data.frame(row.names=tfoi)
+   tblc$cor <- as.numeric(lapply(tfoi, function(TF) mean(abs(subset(tbl, tf==TF)$cor))))
+   tblc$gh <-  as.numeric(lapply(tfoi, function(TF) mean(subset(tbl, tf==TF)$gh)))
+   tblc$count <- as.numeric(lapply(tfoi, function(TF) nrow(subset(tbl, tf==TF))))
+   #tblc$chip <- as.numeric(lapply(tfoi, function(TF) subset(tbl, tf==TF)$chip))
+   tblc$chip <- as.integer(lapply(tfoi, function(TF) sum(subset(tbl, tf==TF)$chip)))
+   tblc$fimo <- as.numeric(lapply(tfoi, function(TF) mean(subset(tbl, tf==TF)$motifScore)))
+   tblc$phast <- as.numeric(lapply(tfoi, function(TF) mean(as.numeric(as.matrix(subset(tbl, tf==TF)[, c("phast7", "phast30", "phast100")])))))
+   #tblc$tss   <- as.numeric(lapply(tfoi, function(TF) mean(abs(subset(tbl, tf==TF)$tss))))
+
+
+   tblc$count[tblc$count > 10] <- 10
+   tblc$chip[tblc$chip > 10] <- 10
+
+   tblc.trimmed <- subset(tblc, cor > 0.32 | chip > 0 | fimo > 5)
+   mtx <- as.matrix(tblc.trimmed[, c("chip", "count", "cor")])
+
+   pca <- prcomp(mtx, scale=TRUE)
+   fviz_eig(pca)
+
+   fviz_pca_ind(pca,
+                col.ind = "cos2", # Color by the quality of representation
+                gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+                repel = TRUE     # Avoid text overlapping
+                )
+
+  fviz_pca_var(pca,
+               col.var = "contrib", # Color by contributions to the PC
+               gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+               repel = TRUE     # Avoid text overlapping
+               )
+
+   fviz_pca_biplot(pca, repel = FALSE,
+                   col.var = "RED", # Variables color
+                   col.ind = "#696969"  # Individuals color
+                   )
+
+    # m2 <- mtx[rownames(subset(as.data.frame(pca$x), PC1 > 0 & PC2 > 0)),]
+    # m2[order(m2[,"cor"], decreasing=TRUE),]
+    #       chip count  cor
+    # IKZF1    4    13 0.57
+    # CEBPA   13    18 0.53
+    # ESR2     0    23 0.51
+    # ESR1    21    63 0.49
+    # SPI1    67    78 0.47
+    # FLI1    39    51 0.46
+    # RUNX1   10    14 0.46
+    # SP2      0    26 0.45
+    # SP3      0    33 0.43
+    # ERG     18    23 0.43
+    # ELF1    18    27 0.41
+    # ETS1     5    14 0.41
+    # GABPA   17    22 0.38
+    # PRDM1    3    20 0.38
+    # RFX5     4    19 0.37
+    # SP1     29   129 0.33
+    # CREB1    5    15 0.32
+
 
 } # test_AD.trem2
 #------------------------------------------------------------------------------------------------------------------------

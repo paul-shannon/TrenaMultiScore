@@ -106,9 +106,12 @@ setMethod('getGeneHancerRegion', 'TrenaMultiScore',
      function(obj){
         tbl <- getEnhancers(getProject(obj))
         obj@state$genehancer <- tbl
+        start <- min(tbl$start) - 1000
+        end <- max(tbl$end) + 1000
+        width <- 1 + end - start
         data.frame(chrom=tbl$chrom[1],
-                   start=min(tbl$start) - 1000,
-                   end=max(tbl$end) + 1000, stringsAsFactors=FALSE)
+                   start=start, end=end, width=width,
+                   stringsAsFactors=FALSE)
 
         }) # getGeneHancerRegion
 
