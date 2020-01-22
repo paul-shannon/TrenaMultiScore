@@ -143,7 +143,8 @@ setMethod('findOpenChromatin', 'TrenaMultiScore',
            message(sprintf("regions of open chromatin: %d", nrow(obj@state$openChromatin)))
            }
         else if("TrenaProjectAD" %in% is(getProject(obj))){
-           obj@state$openChromatin <- .queryHintFootprintRegionsFromDatabase("brain_hint_16", chrom, start, end)
+           obj@state$openChromatin <- .queryBocaATACseq(chrom, start, end)
+           #obj@state$openChromatin <- .queryHintFootprintRegionsFromDatabase("brain_hint_16", chrom, start, end)
            message(sprintf("regions of open chromatin: %d", nrow(obj@state$openChromatin)))
            }
         else stop(sprintf("no support for open chromatin retrieval in %s", getProject(obj)@projectName))
@@ -244,6 +245,16 @@ setMethod('findFimoTFBS', 'TrenaMultiScore',
 
 } # .queryHintFootprintRegionsFromDatabase
 #------------------------------------------------------------------------------------------------------------------------
+.queryBocaATACseq <- function(chrom.loc, start.loc, end.loc)
+{
+  f <- "~/github/TrenaProjectAD/misc/multiScore/boca/tbl.boca.RData"
+  tbl.boca <- get(load(f))
+
+  subset(tbl.boca, chrom==chrom.loc & start >= start.loc & end <= end.loc)
+
+} # .queryBocaATACseq
+#------------------------------------------------------------------------------------------------------------------------
+
 #' add conservation scores to the currently held fimo table
 #'
 #' @description
@@ -417,7 +428,7 @@ setMethod('addGeneExpressionCorrelations', 'TrenaMultiScore',
 
       f <- function(tf){
          if(tf %in% rownames(mtx))
-           return(cor(mtx[obj@targetGene,], mtx[tf,]))
+           return(cor(mtx[obj@targetGene,], mtx[tf,], method="spearman"))
          else return(0)
          }
 
