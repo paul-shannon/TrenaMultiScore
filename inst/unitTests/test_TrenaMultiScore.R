@@ -468,7 +468,15 @@ test_AD.mef2c <- function()
    tms.mef2c <- TrenaMultiScore(tpad, "MEF2C");
    getGeneHancerRegion(tms.mef2c)
    findOpenChromatin(tms.mef2c)
-   findFimoTFBS(tms.mef2c, fimo.threshold=1e-3)
+   tbl.oc <- getOpenChromatin(tms.mef2c)
+   printf("base count for fimo: %d", sum(with(tbl.oc, 1 + end-start)))
+
+   system.time(findFimoTFBS(tms.mef2c, fimo.threshold=1e-7))
+   system.time(findFimoTFBS(tms.mef2c, fimo.threshold=1e-6))
+   system.time(findFimoTFBS(tms.mef2c, fimo.threshold=1e-5))
+   system.time(findFimoTFBS(tms.mef2c, fimo.threshold=1e-4))
+   system.time(findFimoTFBS(tms.mef2c, fimo.threshold=1e-3))  # 5 minutes
+
    addChIP(tms.mef2c)
    scoreMotifHitsForConservation(tms.mef2c)
    scoreMotifHitsForGeneHancer(tms.mef2c)
@@ -479,8 +487,11 @@ test_AD.mef2c <- function()
    addGeneExpressionCorrelations(tms.mef2c, mtx.new)
 
    tbl.raw <- getMultiScoreTable(tms.mef2c)
+
    dim(tbl.raw)
-   tbl <- subset(tbl.raw, chip | p.value <= 1e-4)
+   save(tbl.raw, file="mef2c.fimo1e-3.boca.RData")
+   dim(subset(tbl.raw, chip | p.value <= 1e-5))
+   tbl <- subset(tbl.raw, chip | p.value <= 1e-5)
    dim(tbl)
    length(unique(tbl$tf))
 
@@ -491,8 +502,8 @@ test_AD.mef2c <- function()
 
    dim(tbl)
    hist(abs(tbl$cor))
-   fivenum(abs(tbl$cor))
-   tbl <- subset(tbl, abs(cor) >= 0.10)
+   spread <- fivenum(abs(tbl$cor))
+   tbl <- subset(tbl, abs(cor) >= spread[4])
    dim(tbl)
 
    tfoi <- unique(tbl$tf)
@@ -507,21 +518,27 @@ test_AD.mef2c <- function()
    tblc$phast <- as.numeric(lapply(tfoi, function(TF) mean(as.numeric(as.matrix(subset(tbl, tf==TF)[, c("phast7", "phast30", "phast100")])))))
    #tblc$tss   <- as.numeric(lapply(tfoi, function(TF) mean(abs(subset(tbl, tf==TF)$tss))))
 
+   remove.mef2c <- grep("MEF2C", rownames(tblc))
+   if(length(remove.mef2c) > 0)
+      tblc <- tblc[-remove.mef2c,]
 
+   dim(tblc)
    #tblc$count[tblc$count > 10] <- 10
    #tblc$chip[tblc$chip > 10] <- 10
 
    fivenum(tblc$cor)
-   tblc.trimmed <- subset(tblc, gh > 100 & (cor > 0.22 | chip > 0 | fimo > 5))
+   tblc.trimmed <- subset(tblc, gh > -1 & (cor > 0.22 | chip > 0) & fimo > 3)
    dim(tblc.trimmed)
-   new.order <- with(tblc.trimmed, order(cor, fimo, count, chip, decreasing=TRUE))
+
+
+   #tblc.trimmed <- subset(tblc, gh > 0 & (cor > 0.22 | chip > 0 | fimo > 5))
+   new.order <- with(tblc.trimmed, order(cor, count, fimo, chip, decreasing=TRUE))
    tblc.trimmed <- tblc.trimmed[new.order,]
    dim(tblc.trimmed)
 
+   mtx.pca <- as.matrix(tblc.trimmed[, c("chip", "count", "cor", "gh")])
 
-   mtx <- as.matrix(tblc.trimmed[, c("chip", "count", "cor", "gh")])
-
-   pca <- prcomp(mtx, scale=TRUE)
+   pca <- prcomp(mtx.pca[1:30,], scale=TRUE)
    fviz_eig(pca)
 
    fviz_pca_ind(pca,

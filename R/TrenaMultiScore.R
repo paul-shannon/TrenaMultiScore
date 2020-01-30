@@ -9,6 +9,7 @@
 #' @import org.Hs.eg.db
 #' @import RPostgreSQL
 #'
+#' @import GenomicRanges
 #' @import GenomicScores
 #' @import phastCons7way.UCSC.hg38
 #' @import phastCons100way.UCSC.hg38
@@ -143,8 +144,8 @@ setMethod('findOpenChromatin', 'TrenaMultiScore',
            message(sprintf("regions of open chromatin: %d", nrow(obj@state$openChromatin)))
            }
         else if("TrenaProjectAD" %in% is(getProject(obj))){
-           obj@state$openChromatin <- .queryBocaATACseq(chrom, start, end)
-           #obj@state$openChromatin <- .queryHintFootprintRegionsFromDatabase("brain_hint_16", chrom, start, end)
+           #obj@state$openChromatin <- .queryBocaATACseq(chrom, start, end)
+           obj@state$openChromatin <- .queryHintFootprintRegionsFromDatabase("brain_hint_16", chrom, start, end)
            message(sprintf("regions of open chromatin: %d", nrow(obj@state$openChromatin)))
            }
         else stop(sprintf("no support for open chromatin retrieval in %s", getProject(obj)@projectName))
@@ -213,6 +214,7 @@ setMethod('findFimoTFBS', 'TrenaMultiScore',
        meme.file <- "tmp.meme"
        MotifDb::export(motifs, con=meme.file, format="meme")
        source("~/github/fimoService/batchMode/fimoBatchTools.R")
+       sprintf("calling fimoBatch on %d regions, %5.3f threshold", nrow(tbl.fp), fimo.threshold)
        tbl.fimo <- fimoBatch(tbl.fp, matchThreshold=fimo.threshold, genomeName="hg38", pwmFile=meme.file)
        obj@state$fimo <- tbl.fimo
        sprintf("tbl.fimo stored with %d rows, %d columns", nrow(tbl.fimo), ncol(tbl.fimo))
@@ -240,7 +242,6 @@ setMethod('findFimoTFBS', 'TrenaMultiScore',
       colnames(tbl) <- c("chrom", "start", "end")
       }
 
-
    tbl
 
 } # .queryHintFootprintRegionsFromDatabase
@@ -250,7 +251,12 @@ setMethod('findFimoTFBS', 'TrenaMultiScore',
   f <- "~/github/TrenaProjectAD/misc/multiScore/boca/tbl.boca.RData"
   tbl.boca <- get(load(f))
 
-  subset(tbl.boca, chrom==chrom.loc & start >= start.loc & end <= end.loc)
+  tbl.tmp <- subset(tbl.boca, chrom==chrom.loc & start >= start.loc & end <= end.loc)
+  tbl.reduced <- as.data.frame(reduce(GRanges(tbl.tmp)), row.names=NULL)
+  colnames(tbl.reduced)[1] <- "chrom"
+  tbl.reduced$chrom <- as.character(tbl.reduced$chrom)
+
+  tbl.reduced
 
 } # .queryBocaATACseq
 #------------------------------------------------------------------------------------------------------------------------
@@ -465,7 +471,7 @@ setMethod('addGenicAnnotations', 'TrenaMultiScore',
         # anno <- build_annotations(genome="hg38", annotations=c("hg38_basicgenes", "hg38_genes_intergenic"))
       anno <- get(load(system.file(package="TrenaMultiScore", "extdata", "genomeAnnotations.RData")))
       gr.annoResults <- annotate_regions(regions=gr, annotations=anno, ignore.strand=TRUE, quiet=FALSE)
-      tbl.anno <- as.data.frame(gr.annoResults)
+      tbl.anno <- as.data.frame(gr.annoResults, row.names=NULL)
       coi <- c(existing.colnames, "annot.symbol", "annot.type")
       coi[1] <- "seqnames"  # bioc-speak for chromosome
       tbl.aggregated <- aggregate(cbind(annot.type, annot.symbol) ~ seqnames+start+end+strand+tf, data=tbl.anno, function(x) paste(unique(x), collapse=","))
