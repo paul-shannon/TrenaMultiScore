@@ -15,6 +15,9 @@
 #' @import phastCons100way.UCSC.hg38
 #' @import phastCons30way.UCSC.hg38
 #' @import MotifDb
+#' @import motifmatchr
+#' @importFrom universalmotif convert_motifs
+#' @importFrom TFBSTools PFMatrixList
 #' @import annotatr
 #'
 #' @title TrenaMultiScore-class
@@ -41,6 +44,8 @@ setGeneric('findOpenChromatin', signature='obj', function(obj, chrom=NA, start=N
 setGeneric('getOpenChromatin', signature='obj', function(obj) standardGeneric('getOpenChromatin'))
 setGeneric('findFimoTFBS', signature='obj', function(obj, motifs=NA, fimo.threshold=NA, chrom=NA, start=NA, end=NA)
               standardGeneric('findFimoTFBS'))
+setGeneric('findMoodsTFBS', signature='obj', function(obj, motifs=NA, moods.threshold=NA, chrom=NA, start=NA, end=NA)
+              standardGeneric('findMoodsTFBS'))
 setGeneric('scoreMotifHitsForConservation', signature='obj', function(obj) standardGeneric('scoreMotifHitsForConservation'))
 setGeneric('getMultiScoreTable', signature='obj', function(obj) standardGeneric('getMultiScoreTable'))
 setGeneric('getTargetGeneInfo', signature='obj', function(obj) standardGeneric('getTargetGeneInfo'))
@@ -219,6 +224,58 @@ setMethod('findFimoTFBS', 'TrenaMultiScore',
        obj@state$fimo <- tbl.fimo
        sprintf("tbl.fimo stored with %d rows, %d columns", nrow(tbl.fimo), ncol(tbl.fimo))
        }) # findFimoTFBS
+
+#------------------------------------------------------------------------------------------------------------------------
+#' get scored moods motif binding sites
+#'
+#' @description
+#' call moods (wrapped by motifmatchr package) to get data.frame of all matches above threshold
+#'
+#' @rdname getMoodsTFBS
+#'
+#' @param motifs a list of MotifDb items, JASPAR2019 hsapiens by default
+#' @param moods.threshold 1e-4 by default
+#' @param chrom geneHancerRegion chrom by default
+#' @param start geneHancerRegion start by default
+#' @param end geneHancerRegion end by default
+#'
+#' @return a data.frame
+#'
+#' @export
+#'
+setMethod('findMoodsTFBS', 'TrenaMultiScore',
+
+    function(obj, motifs=NA, moods.threshold=NA, chrom=NA, start=NA, end=NA){
+
+       tbl.oc <- getOpenChromatin(obj)
+       if(nrow(tbl.oc) == 0)
+          stop("TrenaMultiScore::getMoodsTFBS error: no open chromatin regions previously identified.")
+
+       if(is.na(motifs))
+           motifs <- query(obj@motifDb, c("sapiens"), c("hocomoco", "jaspar2018"))
+
+       if(is.na(moods.threshold))
+          moods.threshold <- 1e-4
+
+       gr.oc <- GRanges(tbl.oc)
+       motifs.pfmatrix <- lapply(motifs, function(motif) convert_motifs(motif, "TFBSTools-PFMatrix"))
+       motifs.pfmList <- do.call(PFMatrixList, motifs.pfmatrix)
+       gr.match <- matchMotifs(motifs.pfmList, gr.oc, genome="hg38", out="positions", p.cutoff=moods.threshold)
+       tbl.moods <- as.data.frame(gr.match)
+       if(ncol(tbl.moods) == 8){  # the expected number
+          if(nrow(tbl.moods) > 0){
+             tfs <- mcols(MotifDb[tbl.moods$group_name])$geneSymbol
+             tbl.moods$tf <- tfs
+             }
+          colnames(tbl.moods)[grep("seqnames", colnames(tbl.moods))] <- "chrom"
+          colnames(tbl.moods)[grep("group_name", colnames(tbl.moods))] <- "motifName"
+          colnames(tbl.moods)[grep("score", colnames(tbl.moods))] <- "moodsScore"
+          tbl.moods$chrom <- as.character(tbl.moods$chrom)
+          tbl.moods$strand <- as.character(tbl.moods$strand)
+          }
+       obj@state$moods <- tbl.moods
+       sprintf("tbl.moods stored with %d rows, %d columns", nrow(tbl.moods), ncol(tbl.moods))
+       }) # findMoodsTFBS
 
 #------------------------------------------------------------------------------------------------------------------------
 .queryBrandLabATACseq <- function(chrom.loc, start.loc, end.loc)

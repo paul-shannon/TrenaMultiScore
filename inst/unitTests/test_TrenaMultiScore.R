@@ -20,6 +20,7 @@ runTests <- function()
    test_getGeneHancerRegion()
    test_findOpenChromatin()
    test_findFimoTFBS()
+   test_findMoodsTFBS()
    test_scoreMotifHitsForConservation()
    test_getTargetGeneInfo()
    test_addDistanceToTSS()
@@ -92,6 +93,33 @@ test_findFimoTFBS <- function()
    checkTrue(all(c("SP2", "ZNF263", "CEBPB", "SP1") %in% tbl.fimo$tf)) # and many others
 
 } # test_findFimoTFBS
+#------------------------------------------------------------------------------------------------------------------------
+test_findMoodsTFBS <- function()
+{
+   message(sprintf("--- test_findMoodsTFBS"))
+
+   findOpenChromatin(tmse, "chr3", start=128483204, end=128483276)
+   getOpenChromatin(tmse)
+
+   t4 <- system.time(findMoodsTFBS(tmse, moods.threshold=1e-4))[["elapsed"]]
+   tbl.moods.4 <- tmse@state$moods
+   printf("moods 1e-4: %6.1f secs, %d hits", t4, nrow(tbl.moods.4))
+
+   t3 <- system.time(findMoodsTFBS(tmse, moods.threshold=1e-3))[["elapsed"]]
+   tbl.moods.3 <- tmse@state$moods
+   printf("moods 1e-3: %6.1f secs, %d hits", t3, nrow(tbl.moods.3))
+
+   t2 <- system.time(findMoodsTFBS(tmse, moods.threshold=1e-2))[["elapsed"]]
+   tbl.moods.2 <- tmse@state$moods
+   printf("moods 1e-2: %6.1f secs, %d hits", t2, nrow(tbl.moods.2))
+
+   t6 <- system.time(findMoodsTFBS(tmse, moods.threshold=1e-6))[["elapsed"]]
+   tbl.moods.6 <- tmse@state$moods
+   printf("moods 1e-6: %6.1f secs, %d hits", t6, nrow(tbl.moods.6))
+
+   checkEquals(nrow(tbl.moods.6), 0)
+
+} # test_findMoodsTFBS
 #------------------------------------------------------------------------------------------------------------------------
 test_scoreMotifHitsForConservation <- function()
 {
