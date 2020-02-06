@@ -42,17 +42,24 @@ build.model <- function(targetGene, fimoThresholdAsNegativeExponent=5)
    save(tbl, file=file.path(results.subDirectory, filename))
    invisible(tbl)
 
-
 } # build.model
 #------------------------------------------------------------------------------------------------------------------------
 buildAll <- function()
 {
   goi <- c("TREM2", "MEF2C", "APOE", "PILRA", "BIN1", "VGF", "TYROBP", "ATRX", "MAPT", "APP")
 
-  tbls.all <- lapply(goi, function(targetGene) build.model(targetGene, fimoThresholdAsNegativeExponent=3))
+  tbls.all <- lapply(goi, function(targetGene) build.model(targetGene, fimoThresholdAsNegativeExponent=2))
   names(tbls.all) <- goi
 
 } # buildAll
+#------------------------------------------------------------------------------------------------------------------------
+knownRegulation <- function()
+{
+  file <- "~/github/TrenaMultiScore/misc/saez-benchmarks/database.csv"
+  tbl.bm <-read.table(file, sep=",", as.is=TRUE, header=TRUE, nrow=-1)
+  dim(tbl.bm)  # 1.07M lines
+    
+} # knownRegulation
 #------------------------------------------------------------------------------------------------------------------------
 if(!interactive())
    buildAll()
