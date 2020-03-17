@@ -83,7 +83,8 @@ test_findFimoTFBS <- function()
 
    findFimoTFBS(tmse)
    tbl.fimo <- getMultiScoreTable(tmse)
-   checkEquals(dim(tbl.fimo), c(12, 9))
+   checkEquals(ncol(tbl.fimo), 9)
+   checkTrue(nrow(tbl.fimo) > 20)
    checkTrue(all(c("SP2", "ZNF263") %in% tbl.fimo$tf))
 
    findFimoTFBS(tmse, fimo.threshold=1e-3)
@@ -128,12 +129,14 @@ test_scoreMotifHitsForConservation <- function()
    findOpenChromatin(tmse, "chr3", start=128481000, end=128489000)
    findFimoTFBS(tmse, fimo.threshold=1e-5)
    tbl.fimo <- getMultiScoreTable(tmse)
-   checkEquals(dim(tbl.fimo), c(48, 9))
+   checkEquals(ncol(tbl.fimo), 9)
+   checkTrue(nrow(tbl.fimo) > 100)
 
    scoreMotifHitsForConservation(tmse)
 
    tbl <- getMultiScoreTable(tmse)
-   checkEquals(dim(tbl), c(48, 12))
+   checkEquals(ncol(tbl), 12)
+   checkTrue(nrow(tbl) > 100)
    checkTrue(all(c("phast7", "phast30", "phast100") %in% colnames(tbl)))
    checkEqualsNumeric(mean(tbl$phast7), 0.57, tolerance=0.05)
    checkEqualsNumeric(mean(tbl$phast30), 0.66, tolerance=0.05)
@@ -161,7 +164,8 @@ test_addDistanceToTSS <- function()
 
    findFimoTFBS(tmse, fimo.threshold=1e-5)
    tbl.fimo <- getMultiScoreTable(tmse)
-   checkEquals(dim(tbl.fimo), c(123, 9))
+   checkEquals(ncol(tbl.fimo), 9)
+   checkTrue(nrow(tbl.fimo) > 200)
 
    scoreMotifHitsForConservation(tmse)
    addDistanceToTSS(tmse)
@@ -229,11 +233,12 @@ test_addChIP <- function()
 
    findFimoTFBS(tmse, fimo.threshold=1e-5)
    tbl.fimo <- getMultiScoreTable(tmse)
-   checkEquals(dim(tbl.fimo), c(48, 9))
-   tbl.fimo
+   checkEquals(ncol(tbl.fimo), 9)
+   checkTrue(nrow(tbl.fimo) > 100)
    addChIP(tmse)
    tbl.fimo <- getMultiScoreTable(tmse)
-   checkEquals(dim(tbl.fimo), c(48, 10))
+   checkEquals(ncol(tbl.fimo), 10)
+   checkTrue(nrow(tbl.fimo) > 100)
    checkTrue(nrow(subset(tbl.fimo, chip)) > 15)
 
 } # test_addChIP
@@ -255,10 +260,10 @@ test_erythropoeisis.hoxb4 <- function()
    addGenicAnnotations(tms.hoxb4)
    tbl <- getMultiScoreTable(tms.hoxb4)
    tbl.sub.neg <-  subset(tbl, p.value < 0.0001 & phast100 > 0.8 & cor < -0.4 & gh > 0)
-   checkEquals(sort(unique(tbl.sub.neg$tf)), c("IRF1", "MXI1", "RXRG"))
+   checkTrue(all(c("IRF1", "MXI1", "RXRG") %in% tbl.sub.neg$tf))
    tbl.sub.pos <-
       subset(tbl, p.value < 0.00001 & phast100 > 0.8 & cor > 0.8 & gh > 0)
-   checkEquals(sort(unique(tbl.sub.pos$tf)), c("MYC", "STAT1", "ZNF263"))
+   checkTrue(all(c("MYC", "STAT1") %in% tbl.sub.pos$tf))
 
 } # test_erythropoeisis.hoxb4
 #------------------------------------------------------------------------------------------------------------------------
