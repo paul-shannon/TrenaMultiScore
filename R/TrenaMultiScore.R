@@ -204,7 +204,7 @@ setMethod('findFimoTFBS', 'TrenaMultiScore',
           stop("TrenaMultiScore::getFimoTFBS error: no open chromatin regions previously identified.")
 
        if(is.na(motifs))
-           motifs <- query(obj@motifDb, c("sapiens"), c("hocomoco", "jaspar2018"))
+           motifs <- query(obj@motifDb, c("sapiens"), c("hocomocov11", "jaspar2018"))
 
        if(is.na(fimo.threshold))
           fimo.threshold <- 1e-4

@@ -72,7 +72,7 @@ buildAll <- function()
      source("~/github/regulatoryGenomePaper/demos/common.R")
 
   tfs.oi <- c("GATA1", "GATA2", "FLI1", "SPI1")
-  tbls.all <- lapply(tfs.oi, function(targetGene) build.model(targetGene, 6))
+  tbls.all <- lapply(tfs.oi, function(targetGene) build.model(targetGene, 2))
   names(tbls.all) <- tfs.oi
 
 } # buildAll
