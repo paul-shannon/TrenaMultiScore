@@ -43,6 +43,29 @@ build.model <- function(targetGene, fimoThresholdAsNegativeExponent=5)
 
 } # build.model
 #------------------------------------------------------------------------------------------------------------------------
+goi <- function()
+{
+   tbl <- read.table("G2vsG3GenesUP.txt", sep="\t", as.is=TRUE, header=TRUE, nrow=100)
+   dim(tbl)
+   genes <- tbl$GeneName
+   additional.genes <- read.table(file="additionalGenes.txt", stringsAsFactors=FALSE)$V1
+   length(genes)
+   length(additional.genes)
+   all.goi <- sort(unique(c(genes, additional.genes)))
+   length(all.goi)
+   library(org.Hs.eg.db)
+   tbl.ref <- select(org.Hs.eg.db, key=all.goi, columns=c("SYMBOL", "ENTREZID"), keytype="SYMBOL")
+   successes <- tbl.ref[which(!is.na(tbl.ref$ENTREZID)),]$SYMBOL
+   failures <- tbl.ref[which(is.na(tbl.ref$ENTREZID)),]$SYMBOL
+   tbl.ref2 <- select(org.Hs.eg.db, key=failures, columns=c("SYMBOL", "ALIAS", "ENTREZID"), keytype="ALIAS")
+   successes.round2 <- tbl.ref2[which(!is.na(tbl.ref2$SYMBOL)), "SYMBOL"]
+   goi.final <- sort(unique(c(successes, successes.round2)))
+   length(goi.final)  # 112
+
+   return(goi.final)
+
+} # goi
+#------------------------------------------------------------------------------------------------------------------------
 buildAll <- function()
 {
   if(!exists("haney.erythropoiesis.tfs"))
