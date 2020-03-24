@@ -341,13 +341,21 @@ setMethod('scoreMotifHitsForConservation', 'TrenaMultiScore',
         # phastCons100way.UCSC.hg38
         # phastCons30way.UCSC.hg38
 
-
+       # browser()
        tbl.cons <- as.data.frame(gscores(phastCons7way.UCSC.hg38,
                                          GRanges(tbl.fimo[, c("chrom", "start", "end")])), stringsAsFactors=FALSE)
        tbl.fimo$phast7 <- round(tbl.cons$default, digits=2)
 
-       tbl.cons <- as.data.frame(gscores(phastCons30way.UCSC.hg38,
-                                         GRanges(tbl.fimo[, c("chrom", "start", "end")])), stringsAsFactors=FALSE)
+       if(grepl("khaleesi", Sys.info()[["nodename"]])){
+          load("~/github/TrenaMultiScore/inst/extdata/phastCons30way.UCSC.hg38.downloaded.RData")
+          tbl.cons <- as.data.frame(gscores(phastCons30way.UCSC.hg38.downloaded,
+                                            GRanges(tbl.fimo[, c("chrom", "start", "end")])), stringsAsFactors=FALSE)
+           }
+       else{
+          tbl.cons <- as.data.frame(gscores(phastCons30way.UCSC.hg38,
+                                            GRanges(tbl.fimo[, c("chrom", "start", "end")])), stringsAsFactors=FALSE)
+          } 
+
        tbl.fimo$phast30 <- round(tbl.cons$default, digits=2)
 
        tbl.cons <- as.data.frame(gscores(phastCons100way.UCSC.hg38,

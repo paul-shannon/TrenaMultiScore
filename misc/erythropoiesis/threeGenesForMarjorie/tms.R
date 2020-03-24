@@ -71,7 +71,9 @@ buildAll <- function()
   if(!exists("haney.erythropoiesis.tfs"))
      source("~/github/regulatoryGenomePaper/demos/common.R")
 
-  tfs.oi <- c("GATA1", "GATA2", "FLI1", "SPI1")
+  #tfs.oi <- c("GATA1", "GATA2", "FLI1", "SPI1")
+  tfs.oi <- goi()
+  printf("running tms on %d genes", length(tfs.oi))
   tbls.all <- lapply(tfs.oi, function(targetGene) build.model(targetGene, 2))
   names(tbls.all) <- tfs.oi
 
