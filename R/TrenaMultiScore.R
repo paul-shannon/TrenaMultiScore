@@ -354,7 +354,7 @@ setMethod('scoreMotifHitsForConservation', 'TrenaMultiScore',
        else{
           tbl.cons <- as.data.frame(gscores(phastCons30way.UCSC.hg38,
                                             GRanges(tbl.fimo[, c("chrom", "start", "end")])), stringsAsFactors=FALSE)
-          } 
+          }
 
        tbl.fimo$phast30 <- round(tbl.cons$default, digits=2)
 
@@ -503,7 +503,10 @@ setMethod('addGeneExpressionCorrelations', 'TrenaMultiScore',
          else return(0)
          }
 
-      cor <- unlist(lapply(tbl.fimo$tf, f))
+      suppressWarnings(
+          cor <- unlist(lapply(tbl.fimo$tf, f))
+          )
+
       cor <- round(cor, digits=2)
       tbl.fimo$cor <- cor
       obj@state$fimo <- tbl.fimo
