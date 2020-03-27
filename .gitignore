@@ -4,7 +4,7 @@ inst/extdata/phastCons30way.UCSC.hg38.downloaded.RData
 .Rapp.history
 
 # Session Data files
-.RData
+*.RData
 
 # User-specific files
 .Ruserdata

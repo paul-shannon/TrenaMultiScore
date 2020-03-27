@@ -20,7 +20,14 @@ build.model <- function(targetGene, fimoThresholdAsNegativeExponent=5)
 
    tms.tg <- TrenaMultiScore(tpe, targetGene);
    getGeneHancerRegion(tms.tg)
+
    findOpenChromatin(tms.tg)
+   if(nrow(getOpenChromatin(tms.tg)) == 0){
+      message(sprintf("no open chromatin for %s, bailing out, no model", targetGene))
+      tbl <- data.frame()
+      save(tbl, file=file.path(results.subDirectory, filename))
+      return(data.frame())
+      }
    fimoThreshold <- 10^(-fimoThresholdAsNegativeExponent)
    findFimoTFBS(tms.tg, fimo.threshold=fimoThreshold)
    scoreMotifHitsForConservation(tms.tg)
@@ -72,9 +79,29 @@ buildAll <- function()
      source("~/github/regulatoryGenomePaper/demos/common.R")
 
   #tfs.oi <- c("GATA1", "GATA2", "FLI1", "SPI1")
+  tfs.oi <- goi()[24:112]
   tfs.oi <- goi()
   printf("running tms on %d genes", length(tfs.oi))
-  tbls.all <- lapply(tfs.oi, function(targetGene) build.model(targetGene, 2))
+
+  f <- function(targetGene){
+      tryCatch({
+         fimo.threshold <- 2
+         results.file.path <- file.path(sprintf("./fimo%d", fimo.threshold),
+                                        sprintf("%s.RData", targetGene))
+         if(file.exists(results.file.path))
+             printf("results file exists, skipping: %s", results.file.path)
+         else
+             build.model(targetGene, fimo.threshold)
+         },
+      error = function(e){
+         print("tms error")
+         system(sprintf("touch %s", results.file.path))
+         print(targetGene)
+         print(e)
+         })
+      } # f
+
+  tbls.all <- lapply(tfs.oi, f)
   names(tbls.all) <- tfs.oi
 
 } # buildAll
