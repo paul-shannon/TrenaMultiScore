@@ -5,6 +5,7 @@ biocGet <- function(pkgs){
 
 printf <- function(...) print(noquote(sprintf(...)))
 code.pkgs <- c(
+    'annotatr',
     'GenomicScores',
     'phastCons7way.UCSC.hg38',
     # 'phastCons30way.UCSC.hg38',  loaded from extdata, version/AH problem

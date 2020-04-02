@@ -1,11 +1,11 @@
 Package: TrenaMultiScore
 Title: TrenaMultiScore
-Date: 2020-03-26
-Version: 1.0.21
+Date: 2020-04-02
+Version: 1.0.22
 Author: Paul Shannon
 Maintainer: Paul Shannon <pshannon@systemsbiology.org>
 Description: Create and explore TFBS/targetGene data assembled from many sources.
-Imports: methods, GenomicScores, phastCons7way.UCSC.hg38, phastCons30way.UCSC.hg38, phastCons100way.UCSC.hg38, RPostgreSQL
+Imports: methods, GenomicScores, phastCons7way.UCSC.hg38, phastCons100way.UCSC.hg38, RPostgreSQL
 Depends: R (>= 3.5.1), TrenaProject, MotifDb
 License: Apache 2.0
 Encoding: UTF-8
