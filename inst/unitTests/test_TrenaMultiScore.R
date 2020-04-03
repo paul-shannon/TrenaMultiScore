@@ -312,7 +312,6 @@ test_erythropoeisis.tal1 <- function()
    mtx <- as.matrix(tblc)
 
    pca <- prcomp(mtx, scale=TRUE)
-   library(factoextra)
    fviz_eig(pca)
 
   fviz_pca_ind(pca,
