@@ -2,6 +2,7 @@ library(shiny)
 library(DT)
 
 tbl <- get(load("tbx15.RData"))
+#tbl <- get(load("tbl.105.RData"))
 tbl$absTSS <- abs(tbl$tss)
 rownames(tbl) <- NULL
 coi <- c(
@@ -39,7 +40,7 @@ ui = fluidPage(
    sidebarLayout(
       sidebarPanel(
          selectInput("tf", "Transcription Factor:", tfs, selectize=FALSE),
-         selectInput("targetGene", "Target Gene:", targetGenes, selectize=FALSE),
+         selectInput("targetGene", "Target Gene:", targetGenes, selectize=FALSE, selected="GATA2"),
          sliderInput("absCorrelation", "abs(cor):", min = 0, max = 1.0, value = c(0.0, 1.0)),
          sliderInput("absTSS", "log(abs(tss)):", min = 0, max = log.max.abs.tss,
                      value = c(0, log.max.abs.tss)),
@@ -51,7 +52,7 @@ ui = fluidPage(
                       inline = TRUE, width = NULL, choiceNames = NULL,  choiceValues = NULL),
          width=3),
       mainPanel(
-         DTOutput("table") #, width=200)
+         DTOutput("table")
          )
       ) # sidebarLayout
    ) # fluidPage
@@ -70,7 +71,6 @@ server = function(session, input, output) {
 
       min <- (input$absTSS[1])
       max <- (input$absTSS[2])
-      printf("all abs(tss) > %f and < %f", min, max)
       tbl <- subset(tbl, log10(abs(tss)) >= min & log10(abs(tss)) <= max)
 
       chip <- input$ChIP == "Yes"
@@ -84,16 +84,8 @@ server = function(session, input, output) {
       max <- input$phast30[2]
       tbl <- subset(tbl, phast30 >= min & phast30 <= max)
 
-      tbl
-      },
-      class='nowrap display',
-      options=list(pageLength=100)
-      )
-
-    #observeEvent(input$absCorrelation, ignoreInit=TRUE, {
-    #    printf("%f - %f", min, max)
-    #    })
-
+      DT::datatable(tbl, options=list(pageLength=100, dom='<lfip<t>>'), class='nowrap display')
+      })
    } # server
 
 #----------------------------------------------------------------------------------------------------
