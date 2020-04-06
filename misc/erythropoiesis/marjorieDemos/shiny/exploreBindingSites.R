@@ -41,6 +41,7 @@ targetGenes <- c("any",
 length(targetGenes)
 log.max.abs.tss <- 6 # round(log(max(abs(tbl$tss))) + 0.5)
 max.gh.score <- 700 # round(max(tbl$gh) + 0.5)
+max.motif.score <- 10
 #----------------------------------------------------------------------------------------------------
 ui = fluidPage(
    titlePanel("Query trena multi-scored TFBS"),
@@ -51,11 +52,12 @@ ui = fluidPage(
          sliderInput("absCorrelation", "abs(cor):", min = 0, max = 1.0, value = c(0.0, 1.0)),
          sliderInput("absTSS", "log(abs(tss)):", min = 0, max = log.max.abs.tss,
                      value = c(0, log.max.abs.tss)),
+         sliderInput("motifScore", "motif score:", min=0, max=max.motif.score, value=c(2, max.motif.score)),
 
          sliderInput("geneHancer", "GeneHancer combined score:", min = 0, max = max.gh.score,
                      value = c(0, max.gh.score)),
          sliderInput("phast30", "PhastCons30:", min = 0, max = 1, value = c(0, 1)),
-         radioButtons("ChIP", "ChIP", choices = c("Yes", "No"), selected = "No",
+         radioButtons("ChIP", "ChIP", choices = c("Yes", "No", "Either"), selected = "Either",
                       inline = TRUE, width = NULL, choiceNames = NULL,  choiceValues = NULL),
          width=3),
       mainPanel(
@@ -78,14 +80,30 @@ server = function(session, input, output) {
       min <- input$absCorrelation[1]
       max <- input$absCorrelation[2]
       queryElements <- c(queryElements, sprintf("abs(cor) >= %f AND abs(cor) <= %f", min, max))
-      #tbl <- subset(tbl, abs(cor) >= min & abs(cor) <= max)
+
       min <- (input$absTSS[1])
       max <- (input$absTSS[2])
-      #queryElements <- tbl <- subset(tbl, log10(abs(tss)) >= min & log10(abs(tss)) <= max)
       queryElements <- c(queryElements, sprintf("log10(abs(tss)) >= %f AND log10(abs(tss)) <= %f", min, max))
 
-      #c hip <- input$ChIP == "Yes"
-      # if(chip) tbl <- subset(tbl, chip)
+      min <- input$motifScore[1]
+      max <- input$motifScore[2]
+      queryElements <- c(queryElements, sprintf("motifScore >= %f AND motifScore <= %f", min, max))
+
+      min <- input$phast30[1]
+      max <- input$phast30[2]
+      queryElements <- c(queryElements, sprintf("phast30 >= %f AND phast30 <= %f", min, max))
+
+      min <- input$geneHancer[1]
+      max <- input$geneHancer[2]
+      queryElements <- c(queryElements, sprintf("gh >= %f AND gh <= %f", min, max))
+
+      chip <- input$ChIP;
+
+      if(chip == "Yes"){
+        queryElements <- c(queryElements, "chip")  # appears in sql as WHERE chip AND ...
+      }else if (chip == "No"){
+          queryElements <- c(queryElements, "NOT chip")  # appears in sql as WHERE chip AND ...
+          }
 
       #min <- input$geneHancer[1]
       #max <- input$geneHancer[2]
@@ -98,6 +116,8 @@ server = function(session, input, output) {
       queryString <- sprintf("select * from tms where %s", queryElementsCombined)
       printf("queryString: %s", queryString)
       tbl <- dbGetQuery(db, queryString)
+      tbl$absTSS <- abs(tbl$tss)
+      tbl <- tbl[, coi]
       #browser()
       #tbl <- mtcars
       #queryString <- sprintf("select * from tms where %s", queryElementsCombined)
