@@ -1,9 +1,25 @@
 library(shiny)
 library(DT)
 library(RSQLite)
+options(warn=2)  # warning are turned into errors
 #----------------------------------------------------------------------------------------------------
-db.file.name <- "~/github/TrenaMultiScore/misc/erythropoiesis/marjorieDemos/collectResults/tms.brand105.fimo2.sqlite"
-db <- dbConnect(SQLite(), db.file.name)
+printf = function (...) print (noquote (sprintf (...)))
+#----------------------------------------------------------------------------------------------------
+db.file.name <- "./tms.brand105.fimo2.sqlite"
+directory.01 <- "~/github/TrenaMultiScore/misc/erythropoiesis/marjorieDemos/shiny/data"
+directory.02 <- "/home/shiny/data"
+file.path.01 <- file.path(directory.01, db.file.name)
+file.path.02 <- file.path(directory.02, db.file.name)
+if(file.exists(file.path.01)){
+    printf("loading sqlite db from %s", file.path.01)
+    full.path <- file.path.01
+}else if(file.exists(file.path.02)){
+    printf("loading sqlite db from %s", file.path.02)
+    full.path <- file.path.02
+} else {
+    stop(sprintf("sqlite database '%s' not found"))
+    }
+db <- dbConnect(SQLite(), full.path)
 #----------------------------------------------------------------------------------------------------
 #tbl <- get(load("tbx15.RData"))
 #tbl <- get(load("tbl.105.RData"))
@@ -83,7 +99,7 @@ server = function(session, input, output) {
 
       min <- (input$absTSS[1])
       max <- (input$absTSS[2])
-      queryElements <- c(queryElements, sprintf("log10(abs(tss)) >= %f AND log10(abs(tss)) <= %f", min, max))
+      queryElements <- c(queryElements, sprintf("log10(abs(tss)+0.00001) >= %f AND log10(abs(tss)+0.00001) <= %f", min, max))
 
       min <- input$motifScore[1]
       max <- input$motifScore[2]
@@ -105,33 +121,19 @@ server = function(session, input, output) {
           queryElements <- c(queryElements, "NOT chip")  # appears in sql as WHERE chip AND ...
           }
 
-      #min <- input$geneHancer[1]
-      #max <- input$geneHancer[2]
-      #tbl <- subset(tbl, gh >= min & gh <= max)
 
-      #min <- input$phast30[1]
-      #max <- input$phast30[2]
-      #tbl <- subset(tbl, phast30 >= min & phast30 <= max)
       queryElementsCombined <- paste(queryElements, collapse=" AND ")
       queryString <- sprintf("select * from tms where %s", queryElementsCombined)
       printf("queryString: %s", queryString)
       tbl <- dbGetQuery(db, queryString)
       tbl$absTSS <- abs(tbl$tss)
       tbl <- tbl[, coi]
-      #browser()
-      #tbl <- mtcars
-      #queryString <- sprintf("select * from tms where %s", queryElementsCombined)
-      #                       paste(queryElements, collapse=" AND "))
-      #printf("queryString: %s", queryString)
       DT::datatable(tbl, options=list(pageLength=100, dom='<lfip<t>>'), class='nowrap display')
       })
    } # server
 
 #----------------------------------------------------------------------------------------------------
-runApp(shinyApp(ui=ui, server=server), port=8888)
-
-
-
+shinyApp(ui=ui, server=server)
 
 
 #    output$table <- DT::renderDataTable({
