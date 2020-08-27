@@ -1,4 +1,8 @@
 inst/extdata/phastCons30way.UCSC.hg38.downloaded.RData
+misc/erythropoiesis/marjorieDemos/collectResults/*.RData
+*.sqlite
+#misc/erythropoiesis/marjorieDemos/collectResults/*.sqlite
+
 # History files
 .Rhistory
 .Rapp.history

@@ -10,7 +10,8 @@
   fimo.threshold = NA,
   chrom = NA,
   start = NA,
-  end = NA
+  end = NA,
+  genome = "hg38"
 )
 }
 \arguments{
@@ -23,6 +24,8 @@
 \item{start}{geneHancerRegion start by default}
 
 \item{end}{geneHancerRegion end by default}
+
+\item{genome}{character string, "hg38" by default}
 }
 \value{
 a data.frame

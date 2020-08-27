@@ -17,7 +17,7 @@ if(file.exists(file.path.01)){
     printf("loading sqlite db from %s", file.path.02)
     full.path <- file.path.02
 } else {
-    stop(sprintf("sqlite database '%s' not found"))
+    stop(sprintf("sqlite database '%s' not found", full.path))
     }
 db <- dbConnect(SQLite(), full.path)
 #----------------------------------------------------------------------------------------------------
@@ -134,35 +134,3 @@ server = function(session, input, output) {
 
 #----------------------------------------------------------------------------------------------------
 shinyApp(ui=ui, server=server)
-
-
-#    output$table <- DT::renderDataTable({
-#       queryElements <- c()
-#       if(input$tf != "any")
-#           queryElements <- paste(queryElements, sprintf("tf='%s'", input$tf))
-#           #tbl <- subset(tbl, tf==input$tf)
-#       if(input$targetGene != "any")
-#          queryElements <- paste(queryElements, sprintf("targetGene='%s'", input$targetGene))
-#          #tbl <- subset(tbl, targetGene == input$targetGene)
-#       min <- input$absCorrelation[1]
-#       max <- input$absCorrelation[2]
-#       tbl <- subset(tbl, abs(cor) >= min & abs(cor) <= max)
-#
-#       min <- (input$absTSS[1])
-#       max <- (input$absTSS[2])
-#       tbl <- subset(tbl, log10(abs(tss)) >= min & log10(abs(tss)) <= max)
-#
-#       chip <- input$ChIP == "Yes"
-#       if(chip) tbl <- subset(tbl, chip)
-#
-#       min <- input$geneHancer[1]
-#       max <- input$geneHancer[2]
-#       tbl <- subset(tbl, gh >= min & gh <= max)
-#
-#       min <- input$phast30[1]
-#       max <- input$phast30[2]
-#       tbl <- subset(tbl, phast30 >= min & phast30 <= max)
-#
-#       DT::datatable(tbl, options=list(pageLength=100, dom='<lfip<t>>'), class='nowrap display')
-#       })
-#

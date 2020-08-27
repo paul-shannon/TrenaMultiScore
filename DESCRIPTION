@@ -1,7 +1,7 @@
 Package: TrenaMultiScore
 Title: TrenaMultiScore
-Date: 2020-04-02
-Version: 1.0.22
+Date: 2020-08-26
+Version: 1.0.23
 Author: Paul Shannon
 Maintainer: Paul Shannon <pshannon@systemsbiology.org>
 Description: Create and explore TFBS/targetGene data assembled from many sources.
@@ -10,4 +10,4 @@ Depends: R (>= 3.5.1), TrenaProject, MotifDb
 License: Apache 2.0
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.1.0
+RoxygenNote: 7.1.1

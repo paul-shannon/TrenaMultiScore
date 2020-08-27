@@ -41,7 +41,7 @@ setGeneric('getGeneHancerRegion', signature='obj', function(obj) standardGeneric
 setGeneric('findOpenChromatin', signature='obj', function(obj, chrom=NA, start=NA, end=NA)
               standardGeneric('findOpenChromatin'))
 setGeneric('getOpenChromatin', signature='obj', function(obj) standardGeneric('getOpenChromatin'))
-setGeneric('findFimoTFBS', signature='obj', function(obj, motifs=NA, fimo.threshold=NA, chrom=NA, start=NA, end=NA)
+setGeneric('findFimoTFBS', signature='obj', function(obj, motifs=NA, fimo.threshold=NA, chrom=NA, start=NA, end=NA, genome="hg38")
               standardGeneric('findFimoTFBS'))
 setGeneric('findMoodsTFBS', signature='obj', function(obj, motifs=NA, moods.threshold=NA, chrom=NA, start=NA, end=NA)
               standardGeneric('findMoodsTFBS'))
@@ -190,6 +190,7 @@ setMethod('getOpenChromatin', 'TrenaMultiScore',
 #' @param chrom geneHancerRegion chrom by default
 #' @param start geneHancerRegion start by default
 #' @param end geneHancerRegion end by default
+#' @param genome character string, "hg38" by default
 #'
 #' @return a data.frame
 #'
@@ -197,7 +198,7 @@ setMethod('getOpenChromatin', 'TrenaMultiScore',
 #'
 setMethod('findFimoTFBS', 'TrenaMultiScore',
 
-    function(obj, motifs=NA, fimo.threshold=NA, chrom=NA, start=NA, end=NA){
+    function(obj, motifs=NA, fimo.threshold=NA, chrom=NA, start=NA, end=NA, genome="hg38"){
 
        tbl.fp <- getOpenChromatin(obj)
 
@@ -221,7 +222,7 @@ setMethod('findFimoTFBS', 'TrenaMultiScore',
        MotifDb::export(motifs, con=meme.file, format="meme")
        source("~/github/fimoService/batchMode/fimoBatchTools.R")
        sprintf("calling fimoBatch on %d regions, %5.3f threshold", nrow(tbl.fp), fimo.threshold)
-       tbl.fimo <- fimoBatch(tbl.fp, matchThreshold=fimo.threshold, genomeName="hg38", pwmFile=meme.file)
+       tbl.fimo <- fimoBatch(tbl.fp, matchThreshold=fimo.threshold, genomeName=genome, pwmFile=meme.file)
        obj@state$fimo <- tbl.fimo
        sprintf("tbl.fimo stored with %d rows, %d columns", nrow(tbl.fimo), ncol(tbl.fimo))
        }) # findFimoTFBS
@@ -348,16 +349,16 @@ setMethod('scoreMotifHitsForConservation', 'TrenaMultiScore',
        tbl.fimo$phast7 <- round(tbl.cons$default, digits=2)
 
        #if(grepl("khaleesi", Sys.info()[["nodename"]])){
-          load("~/github/TrenaMultiScore/inst/extdata/phastCons30way.UCSC.hg38.downloaded.RData")
-          tbl.cons <- as.data.frame(gscores(phastCons30way.UCSC.hg38.downloaded,
-                                            GRanges(tbl.fimo[, c("chrom", "start", "end")])), stringsAsFactors=FALSE)
-        #   }
+       #   print(load("~/github/TrenaMultiScore/inst/extdata/phastCons30way.UCSC.hg38.downloaded.RData"))
+       #   tbl.cons <- as.data.frame(gscores(phastCons30way.UCSC.hg38.downloaded,
+       #                                     GRanges(tbl.fimo[, c("chrom", "start", "end")])), stringsAsFactors=FALSE)
+       #   }
        #else{
        #   tbl.cons <- as.data.frame(gscores(phastCons30way.UCSC.hg38,
        #                                     GRanges(tbl.fimo[, c("chrom", "start", "end")])), stringsAsFactors=FALSE)
        #   }
 
-       tbl.fimo$phast30 <- round(tbl.cons$default, digits=2)
+       #tbl.fimo$phast30 <- round(tbl.cons$default, digits=2)
 
        tbl.cons <- as.data.frame(gscores(phastCons100way.UCSC.hg38,
                                          GRanges(tbl.fimo[, c("chrom", "start", "end")])), stringsAsFactors=FALSE)
