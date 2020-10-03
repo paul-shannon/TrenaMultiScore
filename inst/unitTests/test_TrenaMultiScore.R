@@ -3,6 +3,7 @@ library(TrenaProjectErythropoiesis)
 library(TrenaProjectAD)
 library(RUnit)
 library(factoextra)
+library(ghdb)
 
 #------------------------------------------------------------------------------------------------------------------------
 if(!exists("tmse")) {
@@ -659,6 +660,113 @@ test_mef2cModel <- function()
    displayTrack(igv, track)
 
 } # test_mef2cModel
+#------------------------------------------------------------------------------------------------------------------------
+demo.ccl1.tpe <- function()
+{
+   printf("--- demo.ccl1.tpe")
+   tpe <- TrenaProjectErythropoiesis()
+   tmse <- TrenaMultiScore(tpe, "CCL1");
+   tbl.gh <- getGeneHancerRegion(tmse)    # 240k
+   with(tbl.gh, findOpenChromatin(tmse, chrom, start, end))
+   tbl.oc <- getOpenChromatin(tmse)
+
+   tbl.corces.paul <- get(load("~/github/TrenaProjectErythropoiesis/misc/diffBind/corces/tbl.corces.hg38.scoredByPaul.RData"))
+   tbl.corces.rory <- get(load("~/github/TrenaProjectErythropoiesis/misc/diffBind/corces/tbl.diffBind.rory.hg38.day0-4.RData"))
+
+   tbl.corces.paul.ccl1 <- subset(tbl.corces.paul, chrom==tbl.gh$chrom & start >= tbl.gh$start & end <= tbl.gh$end)
+   tbl.corces.rory.ccl1 <- subset(tbl.corces.rory, chrom==tbl.gh$chrom & start >= tbl.gh$start & end <= tbl.gh$end)
+   tbl.corces.rory.ccl1$Fold <- -1 * tbl.corces.rory.ccl1$Fold
+   dim(tbl.corces.paul.ccl1)
+   dim(tbl.corces.rory.ccl1)
+
+   igv <- start.igv("CCL1")
+   track <- DataFrameQuantitativeTrack("corces.paul", tbl.corces.paul.ccl1[, c(1,2,3,13)],
+                                       color="red", autoscale=TRUE)
+   displayTrack(igv, track)
+
+   track <- DataFrameQuantitativeTrack("corces.rory", tbl.corces.rory.ccl1[, c(1,2,3,9)],
+                                       color="red", autoscale=TRUE)
+   displayTrack(igv, track)
+
+   ghdb <- GeneHancerDB()
+   tbl.gh.cd34 <- retrieveEnhancersFromDatabase(ghdb, "CCL1",
+                                                tissues="Common myeloid progenitor CD34+")
+   dim(tbl.gh.cd34) # 5 16
+   track <- DataFrameQuantitativeTrack("GH.cd34", tbl.gh.cd34[, c(1,2,3,11)],
+                                       color="random", autoscale=FALSE, min=0, max=20)
+   displayTrack(igv, track)
+
+   tbl.gh.all <- retrieveEnhancersFromDatabase(ghdb, "CCL1", tissues="all")
+   dim(tbl.gh.all) # 18 16
+   track <- DataFrameQuantitativeTrack("GH.all", tbl.gh.all[, c(1,2,3,11)],
+                                       color="brown", autoscale=FALSE, min=0, max=20)
+   displayTrack(igv, track)
+
+
+     #------------------------------------------------------------
+     # add another track, the +/- ratio of day0 vs day2 reads.
+     # day2 > day0 reads
+     #------------------------------------------------------------
+   day0.mean <- as.numeric(lapply(seq_len(nrow(tbl.corces.paul.ccl1)),
+                                  function(i) mean(as.numeric(tbl.corces.paul.ccl1[i, 4:7]))))
+   day2.mean <- as.numeric(lapply(seq_len(nrow(tbl.corces.paul.ccl1)),
+                                  function(i) mean(as.numeric(tbl.corces.paul.ccl1[i, 8:9]))))
+
+   avg0 <- day0.mean/day2.mean
+   avg2 <- day2.mean/day0.mean
+   avg0[is.infinite(avg0)] <- 0
+   avg2[is.infinite(avg2)] <- 0
+
+   score2 <- rep(0, nrow(tbl.corces.paul.ccl1))
+   score2[which(avg0 > 1)] <- -avg0[avg0 > 1]
+   score2[which(avg2 > 1)] <- avg2[avg2 > 1]
+   score2 <- round(score2, digits=2)
+
+   tbl.corces.paul.ccl1$score2 <- score2
+   track <- DataFrameQuantitativeTrack("score2", tbl.corces.paul.ccl1[, c("chrom", "start", "end", "score2")],
+                                       color="blue", autoscale=FALSE,
+                                       min=-10, max=30)
+   displayTrack(igv, track)
+
+     #------------------------------------------------------------
+     # bring in gene expression data
+     #------------------------------------------------------------
+   f <- system.file(package="TrenaProjectErythropoiesis", "extdata", "expression",
+                    "brandLabDifferentiationTimeCourse-27171x28.RData")
+   file.exists(f)
+   mtx.rna <- get(load(f))
+   cor.all <- lapply(rownames(mtx.rna), function(gene)
+       cor(mtx.rna[gene, 1:4], mtx.rna["CCL1", 1:4]))
+   names(cor.all) <- rownames(mtx.rna)
+   fivenum(as.numeric(cor.all))
+    # -0.68529152  0.06930292  0.26896765  0.48405971  0.89141070
+   hist(as.numeric(cor.all), main="correlation of CCL1 againstall")
+
+    #------------------------------------------------------------
+    # add ChIP indiscriminately
+    #------------------------------------------------------------
+   tbl.chip <- with(tbl.gh, getChipSeq(tpe, chrom[1], min(start)-1000, max(end)+1000))
+   tfs <- names(rev(sort(table(tbl.chip$tf))))
+   for(tf.this in tfs){
+       if(tf.this %in% names(cor.all)){
+          cor.tf <- cor.all[[tf.this]]
+          if(abs(cor.tf) > 0.95){
+              printf("tf %s: %f", tf.this, cor.tf)
+              color <- "red"
+              if(cor.tf < 0)
+                 color <- "blue"
+              tbl.tf <- subset(tbl.chip, tf==tf.this)
+              track <- DataFrameAnnotationTrack(tf.this, tbl.tf[, c(1,2,3)], color=color,,
+                                                displayMode="COLLAPSED", trackHeight=23)
+              displayTrack(igv, track)
+             } # if abs
+          } # tf in cor
+       } # for tf.this
+
+
+
+
+} # demo.ccl1.tpe
 #------------------------------------------------------------------------------------------------------------------------
 
 if(!interactive())

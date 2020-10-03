@@ -147,7 +147,7 @@ setMethod('findOpenChromatin', 'TrenaMultiScore',
             }
         if("TrenaProjectErythropoiesis" %in% is(getProject(obj))){
            obj@state$openChromatin <- .queryBrandLabATACseq(chrom, start, end)
-           message(sprintf("regions of open chromatin: %d", nrow(obj@state$openChromatin)))
+           message(sprintf("regions of Brand ATACseq open chromatin: %d", nrow(obj@state$openChromatin)))
            }
         else if("TrenaProjectAD" %in% is(getProject(obj))){
            #obj@state$openChromatin <- .queryBocaATACseq(chrom, start, end)
@@ -282,7 +282,6 @@ setMethod('findMoodsTFBS', 'TrenaMultiScore',
 #------------------------------------------------------------------------------------------------------------------------
 .queryBrandLabATACseq <- function(chrom.loc, start.loc, end.loc)
 {
-
   tbl.atac <- get(load("~/github/TrenaProjectErythropoiesis/misc/multiScore/brandAtacSeqCuration/tbl.atac.fp.RData"))
   subset(tbl.atac, chrom==chrom.loc & start >= start.loc & end <= end.loc)
 
