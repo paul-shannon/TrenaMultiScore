@@ -4,7 +4,7 @@ length(rdata.files)  # 106
 
 tbls <- lapply(head(rdata.files, n=-1), function(file){
     full.path <- file.path(directory, file)
-    if(file.size(full.path) > 10000){
+    if(file.size(full.path) > 1000){
         tbl <- get(load(full.path))
         #tbl.tbx15 <- subset(tbl, tf=="TBX15")
         return(tbl)

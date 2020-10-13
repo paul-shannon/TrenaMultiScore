@@ -6,6 +6,8 @@ options(warn=2)  # warning are turned into errors
 printf = function (...) print (noquote (sprintf (...)))
 #----------------------------------------------------------------------------------------------------
 db.file.name <- "./tms.brand105.fimo2.sqlite"
+db.file.name <- "smallTest.sqlite"
+db.file.name <- "day0-2.113genes.sqlite"
 directory.01 <- "~/github/TrenaMultiScore/misc/erythropoiesis/marjorieDemos/shiny/data"
 directory.02 <- "/home/shiny/data"
 file.path.01 <- file.path(directory.01, db.file.name)
@@ -36,7 +38,7 @@ coi <- c(
 #"score",
 #"p.value",
 "phast7",
-"phast30",
+#"phast30",
 "phast100",
 "gh",
 "annot.type",
@@ -63,8 +65,8 @@ ui = fluidPage(
    titlePanel("Query trena multi-scored TFBS"),
    sidebarLayout(
       sidebarPanel(
-         selectInput("tf", "Transcription Factor:", tfs, selectize=FALSE, selected="TBX15"),
-         selectInput("targetGene", "Target Gene:", targetGenes, selectize=FALSE, selected="PDZK1IP1"),
+         selectInput("tf", "Transcription Factor:", tfs, selectize=FALSE, selected="any"),
+         selectInput("targetGene", "Target Gene:", targetGenes, selectize=FALSE, selected="any"),
          sliderInput("absCorrelation", "abs(cor):", min = 0, max = 1.0, value = c(0.0, 1.0)),
          sliderInput("absTSS", "log(abs(tss)):", min = 0, max = log.max.abs.tss,
                      value = c(0, log.max.abs.tss)),
@@ -72,7 +74,7 @@ ui = fluidPage(
 
          sliderInput("geneHancer", "GeneHancer combined score:", min = 0, max = max.gh.score,
                      value = c(0, max.gh.score)),
-         sliderInput("phast30", "PhastCons30:", min = 0, max = 1, value = c(0, 1)),
+         #sliderInput("phast30", "PhastCons30:", min = 0, max = 1, value = c(0, 1)),
          radioButtons("ChIP", "ChIP", choices = c("Yes", "No", "Either"), selected = "Either",
                       inline = TRUE, width = NULL, choiceNames = NULL,  choiceValues = NULL),
          width=3),
@@ -105,9 +107,9 @@ server = function(session, input, output) {
       max <- input$motifScore[2]
       queryElements <- c(queryElements, sprintf("motifScore >= %f AND motifScore <= %f", min, max))
 
-      min <- input$phast30[1]
-      max <- input$phast30[2]
-      queryElements <- c(queryElements, sprintf("phast30 >= %f AND phast30 <= %f", min, max))
+      #min <- input$phast30[1]
+      #max <- input$phast30[2]
+      #queryElements <- c(queryElements, sprintf("phast30 >= %f AND phast30 <= %f", min, max))
 
       min <- input$geneHancer[1]
       max <- input$geneHancer[2]
@@ -134,3 +136,5 @@ server = function(session, input, output) {
 
 #----------------------------------------------------------------------------------------------------
 shinyApp(ui=ui, server=server)
+#runApp(shinyApp(ui=ui, server=server), host="0.0.0.0", port=6666)
+
