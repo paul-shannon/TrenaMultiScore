@@ -106,7 +106,7 @@ findCandidates <- function()
 
 } # findCandidates
 #------------------------------------------------------------------------------------------------------------------------
-build.model <- function(targetGene, fimoThresholdAsNegativeExponent=5)
+build.model <- function(targetGene, fimoThresholdAsNegativeExponent=5, tbl.openChromatin=data.frame())
 {
    printf("=========== building model for %s, fimoThreshold: %f", targetGene,
           fimoThresholdAsNegativeExponent)
@@ -117,9 +117,14 @@ build.model <- function(targetGene, fimoThresholdAsNegativeExponent=5)
       dir.create(results.subDirectory)
 
    tms.tg <- TrenaMultiScore(tpe, targetGene);
-   getGeneHancerRegion(tms.tg)
+   printf("--- getGeneHancerRegion")
+   gh.span <- as.list(getGeneHancerRegion(tms.tg))
 
-   findOpenChromatin(tms.tg)
+   printf("--- getOpenChromatin")
+   if(nrow(tbl.openChromatin) == 0)
+      findOpenChromatin(tms.tg)
+   else
+      tms.tg@state$openChromatin <- tbl.openChromatin
    if(nrow(getOpenChromatin(tms.tg)) == 0){
       message(sprintf("no open chromatin for %s, bailing out, saving empty model", targetGene))
       tbl <- data.frame()
@@ -127,14 +132,25 @@ build.model <- function(targetGene, fimoThresholdAsNegativeExponent=5)
       return(data.frame())
       }
    fimoThreshold <- 10^(-fimoThresholdAsNegativeExponent)
-   findFimoTFBS(tms.tg, fimo.threshold=fimoThreshold)
+   printf("--- findFimoTFBS")
+
+   jaspar2018.human <- query(MotifDb, c("sapiens", "jaspar2018"))
+   hocomocov11.core <- query(MotifDb, "hocomocov11-core")
+   motifs <- c(jaspar2018.human,hocomocov11.core)
+   printf("--- using %d motifs only for fimo", length(motifs))
+   findFimoTFBS(tms.tg, motifs=motifs, fimo.threshold=fimoThreshold)
+   printf("--- scoreMotifHitsForConservation")
    scoreMotifHitsForConservation(tms.tg)
+   printf("--- scoreMotifHitsForGeneHancer")
    scoreMotifHitsForGeneHancer(tms.tg)
    addDistanceToTSS(tms.tg)
 
    mtx <- getExpressionMatrix(tpe, "brandLabDifferentiationTimeCourse-27171x28")
+   printf("--- addGeneExpressionCorrelations")
    addGeneExpressionCorrelations(tms.tg, mtx)
+   printf("--- addGenicAnnotations")
    addGenicAnnotations(tms.tg)
+   printf("--- addChip")
    addChIP(tms.tg)
 
    tbl <- getMultiScoreTable(tms.tg)
@@ -142,10 +158,13 @@ build.model <- function(targetGene, fimoThresholdAsNegativeExponent=5)
    tbl$motifScore <- round(-log10(tbl$p.value), 2)
    tbl$targetGene <- targetGene
 
-   dim(tbl)
-   filePath <- file.path(results.subDirectory, filename)
-   save(tbl, file=filePath)
-   message(sprintf("saving %d rows model for %s to %s", nrow(tbl), targetGene, filePath))
+   printf("--- model for %s has %d rows", targetGene, nrow(tbl))
+   if(nrow(tbl) > 0){
+      filePath <- file.path(results.subDirectory, filename)
+      save(tbl, file=filePath)
+      message(sprintf("saving %d rows model for %s to %s", nrow(tbl), targetGene, filePath))
+      }
+
    invisible(tbl)
 
 } # build.model
@@ -175,8 +194,8 @@ build.model <- function(targetGene, fimoThresholdAsNegativeExponent=5)
 #------------------------------------------------------------------------------------------------------------------------
 buildAll <- function(goi, fimoThresholdAsNegativeExponent)
 {
-  if(!exists("haney.erythropoiesis.tfs"))
-     source("~/github/regulatoryGenomePaper/demos/common.R")
+  #if(!exists("haney.erythropoiesis.tfs"))
+  #   source("~/github/regulatoryGenomePaper/demos/common.R")
 
   #tfs.oi <- c("GATA1", "GATA2", "FLI1", "SPI1")
   #tfs.oi <- goi()[24:112]
@@ -203,6 +222,7 @@ buildAll <- function(goi, fimoThresholdAsNegativeExponent)
 
   tbls.all <- lapply(goi, f)
   names(tbls.all) <- goi
+  invisible(tbls.all)
 
 } # buildAll
 #------------------------------------------------------------------------------------------------------------------------
@@ -231,6 +251,7 @@ collectResults <- function(directory, outfile)
 to.sqlite <- function(tbl, sqlite.filename)
 {
    db <- dbConnect(SQLite(), sqlite.filename, synchronous=NULL)
+
 
    system.time(dbWriteTable(db, name="tms", value=tbl, overwrite=TRUE))  # less than 30 seconds
    dbDisconnect(db)
