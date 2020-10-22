@@ -1,4 +1,4 @@
-ID = 15oct2020
+ID = 22oct2020
 IMAGE_NAME = tms_navigator_$(ID)
 TESTPORT=60055
 

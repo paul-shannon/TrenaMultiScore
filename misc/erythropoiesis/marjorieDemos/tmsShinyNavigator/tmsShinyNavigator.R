@@ -18,13 +18,13 @@ DemoApp = R6Class("DemoApp",
 
         initialize = function(){
             printf("initializing demo")
-            private$tbl.tms <- get(load("tbl.afp.RData"))
+            private$tbl.tms <- get(load("tbl.afp.srm.RData"))
             private$tbl.currentSubset <- private$tbl.tms
             rownames(private$tbl.tms) <- NULL
             private$dtw = dataTableWidget$new(id="dt", private$tbl.tms,
-                                              pageLength=20,
-                                              lengthMenu=c(10, 20, 25, 30, 50),
-                                              width="98%", height="1000px")
+                                              pageLength=15,
+                                              lengthMenu=c(4, 10, 15, 20, 25, 30, 50),
+                                              width="1600px", height="1000px")
             },
 
         #------------------------------------------------------------
@@ -46,17 +46,18 @@ DemoApp = R6Class("DemoApp",
                    sliderInput("geneHancer", "GeneHancer combined score:", min = 0, max = 700,
                                value = c(0, 700)),
                    radioButtons(
-                    inputId="chipRadioButtons",
-                    label="ChIP",
-                    choices = c("yes", "no", "either"),
-                    selected = "either",
-                    inline = TRUE,
-                    width = NULL,
-                    choiceNames = NULL,
-                    choiceValues = NULL),
-                   width=2), # sidebarPanel
+                      inputId="chipRadioButtons",
+                      label="ChIP",
+                      choices = c("yes", "no", "either"),
+                      selected = "either",
+                      inline = TRUE,
+                      width = NULL,
+                      choiceNames = NULL,
+                      choiceValues = NULL),
+                      width=2), # sidebarPanel
                mainPanel(
-                 private$dtw$ui()
+                   private$dtw$ui(),
+                   width=10
                  )
               ) # sidebarLayout
             )},
