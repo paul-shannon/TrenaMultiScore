@@ -12,6 +12,6 @@ bash:
            $(IMAGE_NAME)
 
 test:
-	sudo docker run -p 6000:3838 tms_navigator_18nov2020 R -e "shiny::runApp('tmsNavigator.R', port=3838, host='127.0.0.1')"
+	docker run -p 6543:3838 tms_navigator_18nov2020 R -e "shiny::runApp('tmsNavigator.R', port=3838, host='0.0.0.0')"
 
 
