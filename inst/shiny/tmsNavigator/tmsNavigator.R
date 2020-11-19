@@ -4,6 +4,7 @@ library(dataTableWidget)
 library(HeatmapWidget)
 library(msgBoxWidget)
 library(GOEnrichmentWidget)
+library(GenomeTracksWidget)
 library(shinyWidgets)   # for pickerInput
 source("toHeatmapMatrix.R")
 #----------------------------------------------------------------------------------------------------
@@ -19,6 +20,7 @@ DemoApp = R6Class("DemoApp",
                    tfGeneCountReadout = NULL,
                    heatmapWidget = NULL,
                    goWidget = NULL,
+                   genomeTracksWidget = NULL,
                    tbl.tms = NULL,
                    tbl.sub = NULL,
                    tbl.currentSubset = NULL,
@@ -36,19 +38,20 @@ DemoApp = R6Class("DemoApp",
 
         initialize = function(){
             printf("initializing demo")
-            filename <- "~/github/TrenaProjectErythropoiesis/inst/extdata/genomicRegions/tbl.3.0.250000.500000.RData"
+            filename <- "tbl.3.0.250000.500000-itraq.RData"
             tbl.tmp <- get(load(filename))
             diffbind.pval.score <- round(-log10(tbl.tmp$diffbind.pval), digits=3)
             tbl.tmp$diffbind.pScore <- diffbind.pval.score
-            coi <- c("targetGene", "tf", "cor", "chip", "tss", "diffbind.pScore", "motifScore", "gh",
-                     "day0.oc", "day2.oc", "day0.1", "day0.2", "day0.3", "day0.4", "day2.1", "day2.2")
+            coi <- c("targetGene", "tf", "cor", "chip", "tss", "chrom", "start", "end" , "motifScore", "gh",
+                     "day0.oc", "day2.oc", "itraq.rise")
+                    # , "day0.1", "day0.2", "day0.3", "day0.4", "day2.1", "day2.2", "diffbind.pScore")
             private$tbl.tms <- tbl.tmp[, coi]
             private$tbl.sub <- private$tbl.tms
             private$tbl.currentSubset <- private$tbl.tms
             rownames(private$tbl.tms) <- NULL
-            private$tfGeneCountReadout <- msgBoxWidget$new(id="tfGeneCountReadout",
-                                                           title="", boxWidth=200, boxHeight=24,
-                                                           fontSize=16, backgroundColor="white")
+            #private$tfGeneCountReadout <- msgBoxWidget$new(id="tfGeneCountReadout",
+            #                                               title="", boxWidth=200, boxHeight=24,
+            #                                               fontSize=16, backgroundColor="white")
             private$dtw = dataTableWidget$new(id="dtw", private$tbl.tms,
                                               pageLength=15,
                                               lengthMenu=c(4, 10, 15, 20, 25, 30, 50),
@@ -67,7 +70,11 @@ DemoApp = R6Class("DemoApp",
                  tabPanel(title="Open Chromatin", value="openChromatinTab",
                       sidebarLayout(
                         sidebarPanel(
-                            private$tfGeneCountReadout$ui(),
+                            #private$tfGeneCountReadout$ui(),
+                            h4(textOutput("tfGeneCountReadout")),
+                            actionButton("displayHeatmapButton", "Selection to Heatmap"),
+                            actionButton("sendGenesToGoWidgetButton", "Selected Genes to GO"),
+                            actionButton("sendGenesToIGV", "Selection to Genome Tracks"),
                             pickerInput(inputId = "tfPicker",
                                         label = "Filter on TF",
                                         choices = sort(unique(private$tbl.tms$tf)),
@@ -81,6 +88,16 @@ DemoApp = R6Class("DemoApp",
                                                        `selected-text-format`="count > 6"),
                                         multiple = TRUE),
                             radioButtons(
+                                inputId="chipRadioButtons",
+                                label="ChIP",
+                                choices = c("yes", "no", "either"),
+                                selected = "either",
+                                inline = TRUE,
+                                width = NULL,
+                                choiceNames = NULL,
+                                choiceValues = NULL),
+                            sliderInput("geneHancer", "GeneHancer combined score:", min = 0, max = 700, value = c(0, 700)),
+                            radioButtons(
                                 inputId="openChromatinPreference",
                                 label="Chromatin Closed Early?",
                                 choices = c("yes", "no"),
@@ -92,45 +109,34 @@ DemoApp = R6Class("DemoApp",
                             sliderInput("day0.oc.slider", "Day 0 open chromatin max reads:",
                                         min=0,
                                         max=20,
-                                        value=2, step=1),
+                                        value=1, step=0.1),
                             sliderInput("day2.oc.slider", "Day 2 open chromatin min reads:",
                                         min=0,
                                         max=20,
-                                        value=20, step=1),
-                            sliderInput("absDiffbind", "abs(diffbind):", min=0, max=4.0, value=c(0.0, 4.0), step=0.1),
-                            sliderInput("absCorrelation", "abs(cor):", min=0, max=1.0, value=c(0.0, 1.0)),
-                            sliderInput("absTSS", "log(abs(tss)):", min=0, max=10, value = c(0, 10), step=0.2),
+                                        value=4, step=0.1),
+                            #sliderInput("absDiffbind", "abs(diffbind):", min=0, max=4.0, value=c(0.0, 4.0), step=0.1),
+                            sliderInput("absCorrelation", "abs(cor):", min=0, max=1.0, value=c(0.4, 1.0)),
+                            sliderInput("absTSS", "log(abs(tss)):", min=0, max=10, value = c(0, 5), step=0.2),
                             sliderInput("motifScore", "motif score:", min=0, max=10, value=c(3, 10), step=0.5),
-                            sliderInput("geneHancer", "GeneHancer combined score:", min = 0, max = 700,
-                                        value = c(0, 700)),
-                            radioButtons(
-                                inputId="chipRadioButtons",
-                                label="ChIP",
-                                choices = c("yes", "no", "either"),
-                                selected = "either",
-                                inline = TRUE,
-                                width = NULL,
-                                choiceNames = NULL,
-                                choiceValues = NULL),
-                            actionButton("displayHeatmapButton", "Selection to Heatmap"),
-                            actionButton("sendGenesToGoWidgetButton", "Selected Genes to GO"),
-                            actionButton("sendGenesAndTFsToGoWidgetButton", "Selected Genes+TFs to GO"),
-                            width=2), # sidebarPanel
+                            width=3), # sidebarPanel
                         mainPanel(
                           div(private$dtw$ui(), style="margin:20px;"),
-                          width=10
+                          width=9
                           ) # mainPanel
                       ) # sidebarLayout for openChromatin
                       ), # tabPanel
                  tabPanel(title="Heatmap", value="heatmapTab",
-                    wellPanel(
-                        div(htmlOutput("heatmapClickReadout"),
-                            style="background-color: gray; height: 80px; margin-top: 10px; font-size: 18px; width=200px;")
-                        ),
+                    #wellPanel(
+                    #    div(htmlOutput("heatmapClickReadout"),
+                    #        style="background-color: gray; height: 80px; margin-top: 10px; font-size: 18px; width=200px;")
+                    #    ),
                     div(id="heatmapContainer", div(id="heatmapWrapper"))
                     ), # heatmap tabPanel
                  tabPanel(title="GO", value="GOtab",
                     private$goWidget$ui()
+                    ),
+                 tabPanel(title="IGV Tracks", value="igvTab",
+                    div(id="genomeTracksContainer", div(id="genomeTracksWrapper"))
                     )
                  ) # tabsetPanel
             )},
@@ -144,7 +150,6 @@ DemoApp = R6Class("DemoApp",
 
            private$dtw$server(input, output, session)
            private$goWidget$server(input, output, session)
-           private$tfGeneCountReadout$server(input, output, session)
 
            #---------------------------------------------------------------
            observe({   # any and all of the subsetting widgets
@@ -182,9 +187,9 @@ DemoApp = R6Class("DemoApp",
                                           day0.oc >= day0.oc.threshold & day2.oc <= day2.oc.threshold)
                 } # closedThenOpenSearch
 
-              absDiffbind <- input$absDiffbind
-              private$tbl.sub <- subset(private$tbl.sub, abs(diffbind.pScore) >= absDiffbind[1] &
-                                         abs(diffbind.pScore) <= absDiffbind[2])
+              #absDiffbind <- input$absDiffbind
+              #private$tbl.sub <- subset(private$tbl.sub, abs(diffbind.pScore) >= absDiffbind[1] &
+              #                           abs(diffbind.pScore) <= absDiffbind[2])
 
               absCorrelation <- input$absCorrelation
               private$tbl.sub <- subset(private$tbl.sub, abs(cor) >= absCorrelation[1] & abs(cor) <= absCorrelation[2])
@@ -192,7 +197,7 @@ DemoApp = R6Class("DemoApp",
               absTSS <- input$absTSS
               lowerBound <- 10^(absTSS[1])
               upperBound <- 10^(absTSS[2])
-              printf("upperBound: %f    lowerBound: %f", lowerBound, upperBound)
+              printf("lowerBound: %f    upperBound: %f", lowerBound, upperBound)
               private$tbl.sub <- subset(private$tbl.sub, abs(tss) >= lowerBound & abs(tss) <= upperBound)
 
               motifScores <- input$motifScore
@@ -203,11 +208,15 @@ DemoApp = R6Class("DemoApp",
 
               printf("--- observe, about to setTable of %d rows", nrow(private$tbl.sub))
 
-              private$tfGeneCountReadout$setText(sprintf("%4d targetGenes, %4d tfs",
-                                                         length(unique(private$tbl.sub$targetGene)),
-                                                         length(unique(private$tbl.sub$tf))))
+              output$tfGeneCountReadout <- renderText(sprintf("%4d targetGenes, %4d tfs",
+                                                              length(unique(private$tbl.sub$targetGene)),
+                                                              length(unique(private$tbl.sub$tf))))
 
               private$dtw$setTable(private$tbl.sub)
+              tbl.sub <- private$tbl.sub
+              #tmp.filename <- sprintf("tbl-%d.rows.RData", nrow(tbl.sub))
+              #printf("=== saving tbl.sub to %s", tmp.filename)
+              #save(tbl.sub, file=tmp.filename)
               }) # observe
 
            #---------------------------------------------------------------------------------------
@@ -230,12 +239,20 @@ DemoApp = R6Class("DemoApp",
               targetGene.count <- length(unique(private$tbl.sub$targetGene))
               printf("--- displayHeatmapButton, targetGenes %d, tfs %d", targetGene.count, tf.count)
               x <- HeatMapMatrixFromTMSTable$new(private$tbl.sub)
-              private$heatmap.mtx <- x$calculate()
-              printf(" xtab matrix, %d x %d", nrow(private$heatmap.mtx), ncol(private$heatmap.mtx))
+              mtx.tmp <- x$calculate()
+              printf(" xtab matrix, before, %d x %d", nrow(mtx.tmp), ncol(mtx.tmp))
+              if(nrow(mtx.tmp) == 1)
+                  mtx.tmp <- rbind(mtx.tmp, mtx.tmp)
+              if(ncol(mtx.tmp) == 2){
+                 printf("====== doubling columns")
+                 mtx.tmp <- cbind(mtx.tmp, mtx.tmp)
+                 }
+              printf(" xtab matrix, after, %d x %d", nrow(mtx.tmp), ncol(mtx.tmp))
+              private$heatmap.mtx <- mtx.tmp
               mtx.xtab <- private$heatmap.mtx
-              filename <- sprintf("mtx.xtab.%d.%d.RData", nrow(mtx.xtab), ncol(mtx.xtab))
-              printf("saving mtx.xtab to %s", filename)
-              save(mtx.xtab, file=filename)
+              #filename <- sprintf("mtx.xtab.%d.%d.RData", nrow(mtx.xtab), ncol(mtx.xtab))
+              #printf("saving mtx.xtab to %s", filename)
+              # save(mtx.xtab, file=filename)
               private$heatmapWidget = HeatmapWidget$new(id="box1",
                                                         title="Coordinate Regulation",
                                                         private$heatmap.mtx,
@@ -264,15 +281,23 @@ DemoApp = R6Class("DemoApp",
               })
 
            #---------------------------------------------------------------------------------------
-           observeEvent(input$sendGenesAndTFsToGoWidgetButton, ignoreInit=TRUE, {
+           observeEvent(input$sendGenesToIGV, ignoreInit=TRUE, {
 
-               goi <- c(unique(private$tbl.sub$targetGene),
-                        unique(private$tbl.sub$tf))
-               count <- length(goi)
-               printf("genes for enrichment: %d", count)
-               printf("tbl.sub: %d, %d", nrow(private$tbl.sub), ncol(private$tbl.sub))
-               updateTabsetPanel(session, "navigationTabSet", selected="GOtab")
-               private$goWidget$setGenes(goi)
+              goi <- c(unique(private$tbl.sub$targetGene))
+              count <- length(goi)
+              printf("genes for possible tracks: %d", count)
+              printf("tbl.sub: %d, %d", nrow(private$tbl.sub), ncol(private$tbl.sub))
+              removeUI(selector="#genomeTracksWrapper", immediate=TRUE)
+              updateTabsetPanel(session, "navigationTabSet", selected="igvTab")
+              printf("send to igv, dim(tbl.sub): %d %d", nrow(private$tbl.sub), ncol(private$tbl.sub))
+              private$genomeTracksWidget <- GenomeTracksWidget$new("gtw1", "Genome Tracks")
+              private$genomeTracksWidget$setTable(private$tbl.sub)
+              insertUI(selector="#genomeTracksContainer", where="beforeEnd",
+                       div(id="genomeTracksWrapper"), immediate=TRUE)
+              insertUI(selector="#genomeTracksWrapper", where="beforeEnd",
+                        private$genomeTracksWidget$ui(), immediate=TRUE)
+              private$genomeTracksWidget$server(input, output, session)
+
               })
 
            #---------------------------------------------------------------------------------------
@@ -305,5 +330,5 @@ DemoApp = R6Class("DemoApp",
 #--------------------------------------------------------------------------------
 app <- DemoApp$new()
 x <- shinyApp(app$ui, app$server)
-runApp(x, port=1156)
+runApp(x, port=3838)
 
