@@ -329,6 +329,8 @@ DemoApp = R6Class("DemoApp",
     ) # class
 #--------------------------------------------------------------------------------
 app <- DemoApp$new()
-x <- shinyApp(app$ui, app$server)
-runApp(x, port=3838)
-
+if(grepl("hagfish", Sys.info()[["nodename"]])){
+    runApp(shinyApp(app$ui(), app$server), port=1113)
+   } else {
+    shinyApp(app$ui(), app$server)
+    }
