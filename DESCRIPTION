@@ -1,7 +1,7 @@
 Package: TrenaMultiScore
 Title: TrenaMultiScore
-Date: 2021-01-26
-Version: 1.0.29
+Date: 2021-01-25
+Version: 1.0.30
 Author: Paul Shannon
 Maintainer: Paul Shannon <pshannon@systemsbiology.org>
 Description: Create and explore TFBS/targetGene data assembled from many sources.

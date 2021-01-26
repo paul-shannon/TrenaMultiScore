@@ -27,6 +27,7 @@ runTests <- function()
    test_addDistanceToTSS()
    test_scoreMotifHitsForGeneHancer()
    test_addGenicAnnotations()
+   test_addGeneExpressionCorrelations()
    test_addChIP()
 
 } # runTests
@@ -245,6 +246,44 @@ test_addChIP <- function()
    checkTrue(nrow(subset(tbl.fimo, chip)) > 15)
 
 } # test_addChIP
+#------------------------------------------------------------------------------------------------------------------------
+test_addGeneExpressionCorrelations <- function()
+{
+   message(sprintf("--- test_addGeneExpressionCorrelations"))
+
+   tms.hoxb4 <- TrenaMultiScore(tpe, "HOXB4");
+   getGeneHancerRegion(tms.hoxb4)
+   findOpenChromatin(tms.hoxb4)
+   findFimoTFBS(tms.hoxb4, fimo.threshold=1e-5)
+   tbl.fimo <- getMultiScoreTable(tms.hoxb4)
+
+   mtx <- getExpressionMatrix(tpe, "brandLabDifferentiationTimeCourse-27171x28")
+   timepoints <- c("day0.r1", "day0.r2", "day2.r1", "day2.r2", "day4.r1", "day4.r2")
+   addGeneExpressionCorrelations(tms.hoxb4, mtx)
+
+   addGeneExpressionCorrelations(tms.hoxb4, mtx, "cor.early", timepoints)
+   tbl <- getMultiScoreTable(tms.hoxb4)
+   checkTrue(all(c("cor", "cor.early") %in% colnames(tbl)))
+
+     # choose 10 tfs at random for checking
+   set.seed(17)
+   tfs <- sample(unique(tbl$tf), 10)
+   tfs.usable <- intersect(tfs, rownames(mtx))
+   tfs.noExpression <- setdiff(tfs, rownames(mtx))
+
+   for(this.tf in tfs.usable){
+      expected <- round(cor(mtx[this.tf, ], mtx["HOXB4",], method="spearman"), digits=2)
+      actual <- subset(tbl, tf==this.tf)$cor[1]
+      checkEquals(expected, actual)
+      expected.sub <- round(cor(mtx[this.tf, timepoints], mtx["HOXB4", timepoints], method="spearman"), digits=2)
+      actual <- subset(tbl, tf==this.tf)$cor.early[1]
+      checkEquals(expected.sub, actual)
+      }
+
+   checkTrue(all(is.na(subset(tbl, tf %in% tfs.noExpression)$cor)))
+   checkTrue(all(is.na(subset(tbl, tf %in% tfs.noExpression)$cor.early)))
+
+} # test_addGeneExpressionCorrelations
 #------------------------------------------------------------------------------------------------------------------------
 test_erythropoeisis.hoxb4 <- function()
 {

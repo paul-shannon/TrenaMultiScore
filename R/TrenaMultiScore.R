@@ -51,7 +51,7 @@ setGeneric('getMultiScoreTable', signature='obj', function(obj) standardGeneric(
 setGeneric('getTargetGeneInfo', signature='obj', function(obj) standardGeneric('getTargetGeneInfo'))
 setGeneric('addDistanceToTSS', signature='obj', function(obj) standardGeneric('addDistanceToTSS'))
 setGeneric('scoreMotifHitsForGeneHancer', signature='obj', function(obj) standardGeneric('scoreMotifHitsForGeneHancer'))
-setGeneric('addGeneExpressionCorrelations', signature='obj', function(obj, mtx) standardGeneric('addGeneExpressionCorrelations'))
+setGeneric('addGeneExpressionCorrelations', signature='obj', function(obj, mtx, featureName="cor", colnames=list()) standardGeneric('addGeneExpressionCorrelations'))
 setGeneric('addGenicAnnotations', signature='obj', function(obj) standardGeneric('addGenicAnnotations'))
 setGeneric('addChIP', signature='obj', function(obj) standardGeneric('addChIP'))
 #------------------------------------------------------------------------------------------------------------------------
@@ -495,14 +495,20 @@ setMethod('scoreMotifHitsForGeneHancer', 'TrenaMultiScore',
 #'
 #' @param obj a TrenaMultiScore object
 #' @param mtx a numerical matrix, genes are rownames, samples are colnames
+#' @param featureName a character string, default "cor", data.frame column where results are stored
+#' @param colnames list of character strings, limits scope of correlation calcuation. default empty list: use all columns
 #' @return None
 #'
 #' @export
 #'
 setMethod('addGeneExpressionCorrelations', 'TrenaMultiScore',
 
-    function(obj, mtx){
+    function(obj, mtx, featureName="cor", colnames=list()){
 
+      if(length(colnames) > 0){
+         stopifnot(all(colnames %in% colnames(mtx)))
+         mtx <- mtx[, colnames]
+         }
       tbl.fimo <- obj@state$fimo
       if(nrow(tbl.fimo) == 0)
          stop("TrenaMultiScore::addGeneExpressionCorrelations error: no fimo hits yet identified.")
@@ -510,7 +516,7 @@ setMethod('addGeneExpressionCorrelations', 'TrenaMultiScore',
       f <- function(tf){
          if(tf %in% rownames(mtx))
            return(cor(mtx[obj@targetGene,], mtx[tf,], method="spearman"))
-         else return(0)
+         else return(NA)
          }
 
       suppressWarnings(
@@ -518,7 +524,7 @@ setMethod('addGeneExpressionCorrelations', 'TrenaMultiScore',
           )
 
       cor <- round(cor, digits=2)
-      tbl.fimo$cor <- cor
+      tbl.fimo[, featureName] <- cor
       obj@state$fimo <- tbl.fimo
       }) # addGeneExpressionCorrelations
 

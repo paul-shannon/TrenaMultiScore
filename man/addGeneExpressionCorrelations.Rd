@@ -4,12 +4,16 @@
 \alias{addGeneExpressionCorrelations,TrenaMultiScore-method}
 \title{add a tf/targetGene correlations score for those TFs also in the expression matrix}
 \usage{
-\S4method{addGeneExpressionCorrelations}{TrenaMultiScore}(obj, mtx)
+\S4method{addGeneExpressionCorrelations}{TrenaMultiScore}(obj, mtx, featureName = "cor", colnames = list())
 }
 \arguments{
 \item{obj}{a TrenaMultiScore object}
 
 \item{mtx}{a numerical matrix, genes are rownames, samples are colnames}
+
+\item{featureName}{a character string, default "cor", data.frame column where results are stored}
+
+\item{colnames}{list of character strings, limits scope of correlation calcuation. default empty list: use all columns}
 }
 \value{
 None
