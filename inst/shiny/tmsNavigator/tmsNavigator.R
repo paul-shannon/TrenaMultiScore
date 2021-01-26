@@ -7,6 +7,7 @@ library(GOEnrichmentWidget)
 library(GenomeTracksWidget)
 library(shinyWidgets)   # for pickerInput
 source("toHeatmapMatrix.R")
+library(rsconnect)
 #----------------------------------------------------------------------------------------------------
 printf <- function(...) print(noquote(sprintf(...)))
 #----------------------------------------------------------------------------------------------------
@@ -328,8 +329,23 @@ DemoApp = R6Class("DemoApp",
        ) # public
     ) # class
 #--------------------------------------------------------------------------------
+deploy <-function()
+{
+    deployApp(account="pshannon",
+              appName="trena-hematopoiesis",
+              appTitle="TrenaMultiScore early Hematopoiesis",
+#              appSourceDoc="tmsNavigator.R",
+              appFiles=c("tmsNavigator.R",
+                         "toHeatmapMatrix.R",
+                         "tbl.3.0.250000.500000-itraq.RData"
+                         )
+
+              )
+
+} # deploy
+#------------------------------------------------------------------------------------------------------------------------
 app <- DemoApp$new()
-if(grepl("hagfish", Sys.info()[["nodename"]])){
+if(grepl("hagfish", Sys.info()[["nodename"]]) & interactive()){
     runApp(shinyApp(app$ui(), app$server), port=1113)
    } else {
     shinyApp(app$ui(), app$server)

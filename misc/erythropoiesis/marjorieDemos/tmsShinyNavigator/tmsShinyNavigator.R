@@ -83,11 +83,11 @@ DemoApp = R6Class("DemoApp",
                                 "either" = tbl.sub)
 
               absDiffbind <- input$absDiffbind
-              tbl.sub <- subset(tbl.sub, abs(diffbind.score) > absDiffbind[1] &
-                                         abs(diffbind.score) < absDiffbind[2])
+              tbl.sub <- subset(tbl.sub, abs(diffbind.score) >= absDiffbind[1] &
+                                         abs(diffbind.score) <= absDiffbind[2])
 
               absCorrelation <- input$absCorrelation
-              tbl.sub <- subset(tbl.sub, abs(cor) > absCorrelation[1] & abs(cor) < absCorrelation[2])
+              tbl.sub <- subset(tbl.sub, abs(cor) >= absCorrelation[1] & abs(cor) <= absCorrelation[2])
 
               absTSS <- input$absTSS
               lowerBound <- 10^(absTSS[1])
@@ -96,10 +96,10 @@ DemoApp = R6Class("DemoApp",
               tbl.sub <- subset(tbl.sub, abs(tss) >= lowerBound & abs(tss) <= upperBound)
 
               motifScores <- input$motifScore
-              tbl.sub <- subset(tbl.sub, motifScore > motifScores[1] & motifScore < motifScores[2])
+              tbl.sub <- subset(tbl.sub, motifScore >= motifScores[1] & motifScore <= motifScores[2])
 
               geneHancer <- input$geneHancer
-              tbl.sub <- subset(tbl.sub, gh > geneHancer[1] & gh < geneHancer[2])
+              tbl.sub <- subset(tbl.sub, gh >= geneHancer[1] & gh <= geneHancer[2])
 
               printf("--- observe, about to setTable of %d rows", nrow(tbl.sub))
               private$dtw$setTable(tbl.sub)

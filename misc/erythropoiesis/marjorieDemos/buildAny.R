@@ -10,6 +10,10 @@ source("tms.R")
 tbl.diffbind <- get(load("~/github/TrenaProjectErythropoiesis/misc/diffBind/corces/tbl.diffBind.rory.hg38.day0-4.th10.RData"))
 head(lapply(tbl.diffbind, class))
 #-------------------------------------------------------------------------------------------------------------------
+coi.01 <- c("chrom", "start","end","tf","targetGene", "gh","tss","cor",
+            "chip","motifScore","diffbind.score","diffbind.pval","day0.1",
+            "day0.2","day0.3","day0.4","day2.1","day2.2", "motif_id", "strand", "matched_sequence")
+#-------------------------------------------------------------------------------------------------------------------
 buildBindingTable <- function(goi, fimo.score.threshold, abs.cor.threshold, shoulder, tbl.oc=data.frame())
 {
    printf("--- buildBindingTable: %s", goi)
@@ -32,7 +36,6 @@ buildBindingTable <- function(goi, fimo.score.threshold, abs.cor.threshold, shou
         } #
      } # if no (i.e., empty) tbl.oc provided
 
-   browser()
    tbl <- build.model(goi, fimoThresholdAsNegativeExponent=fimo.score.threshold, tbl.openChromatin=tbl.oc)
    printf("--- fimo hits found: %d", nrow(tbl))
    tbl.sub <- subset(tbl, abs(cor) > abs.cor.threshold)
@@ -91,17 +94,38 @@ gois <- c("AFP",
           "ZNF560")
 
 #------------------------------------------------------------------------------------------------------------------------
+getRegion <- function(goi, shoulder)
+{
+   uri <- sprintf("http://localhost:8000/geneLoc")
+   body.jsonString <- sprintf('%s', toJSON(list(gene=goi, genome="hg38", shoulder=0)))
+   r <- POST(uri, body=body.jsonString)
+   tbl.geneLoc <- fromJSON(httr::content(r)[[1]])
+
+   list(chrom=tbl.geneLoc$chrom, start=tbl.geneLoc$start-shoulder, end=tbl.geneLoc$end+shoulder)
+
+} # getRegion
+#------------------------------------------------------------------------------------------------------------------------
 runBuilds <- function()
 {
-    fimo <- 3
-    abscor <- 0.25
-    shoulder <- 10000
-    tbls.out <- lapply(gois, function(goi) buildBindingTable(goi, fimo, abscor, shoulder))
-    save(tbls.out, file=sprintf("tbls.out.%d.%f.%d.RData", fimo, abscor, shoulder))
-    tbl <- do.call(rbind, tbls.out)
-    mtx <- as.matrix(table(tbl$tf, tbl$targetGene))
-    dim(mtx)
-    list.cv <- sort(apply(mtx, 1, cv))
+   gois <- get(load("~/github/TrenaProjectErythropoiesis/inst/extdata/geneSets/day0.day2-53-topGenes.RData"))
+
+   fimo <- 3
+   abscor <- 0.25
+   shoulder <- 500000
+   tbls.out <- list()
+   for(goi in gois[16:28]){
+     loc <- getRegion(goi, shoulder)
+     tbl.oc <- subset(tbl.diffbind, chrom==loc$chrom & start >= loc$start & end <= loc$end)
+     printf("oc count for %s: %d", goi, nrow(tbl.oc))
+     tbl.goi <- buildBindingTable(goi, fimo, abscor, shoulder, tbl.oc)
+     tbls.out[[goi]] <- tbl.goi
+     }
+   save(tbls.out, file=sprintf("tbls.out.%d.%f.%d.RData", fimo, abscor, shoulder))
+   tbl <- do.call(rbind, tbls.out)
+   save(tbl, file=sprintf("tbl.%d.%f.%d.RData", fimo, abscor, shoulder))
+   mtx <- as.matrix(table(tbl$tf, tbl$targetGene))
+   dim(mtx)
+   list.cv <- sort(apply(mtx, 1, cv))
 
     subset(tbl, tf=="NR5A2" & abs(cor) > 0.3 & abs(diffbind.score) > 2)[, -c(8, 17)]
     subset(tbl, tf=="E2F3" & abs(cor) > 0.5 & abs(diffbind.score) > 2)[, -c(8, 17)]
@@ -113,8 +137,6 @@ runBuilds <- function()
     length(unique(tbl$tf)) # [1] 460
 
 } # runBuilds
-#------------------------------------------------------------------------------------------------------------------------
-
 #------------------------------------------------------------------------------------------------------------------------
 # Alpha fetoprotein (AFP) participates in the build up of hematopoietic cells in the early embryonic stage
 # bmc diagnostic pathology, 2019:
@@ -141,8 +163,12 @@ test.afp <- function()
 
 } # test.afp
 #------------------------------------------------------------------------------------------------------------------------
-coi.01 <- c("chrom", "start","end","tf","targetGene", "gh","tss","cor",
-            "chip","motifScore","diffbind.score","diffbind.pval","day0.1",
-            "day0.2","day0.3","day0.4","day2.1","day2.2", "strand","motif_id")
+big.build <- function(cois)
+{
+
+
+} # big.build
+#------------------------------------------------------------------------------------------------------------------------
+
 
 

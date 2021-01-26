@@ -6,7 +6,7 @@
 \usage{
 \S4method{findFimoTFBS}{TrenaMultiScore}(
   obj,
-  motifs = NA,
+  motifs = list(),
   fimo.threshold = NA,
   chrom = NA,
   start = NA,

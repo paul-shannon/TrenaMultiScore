@@ -40,6 +40,7 @@ setGeneric('getProject', signature='obj', function(obj) standardGeneric('getProj
 setGeneric('getGeneHancerRegion', signature='obj', function(obj) standardGeneric('getGeneHancerRegion'))
 setGeneric('findOpenChromatin', signature='obj', function(obj, chrom=NA, start=NA, end=NA)
               standardGeneric('findOpenChromatin'))
+#setGeneric('explicitlySetOpenChromatin', signature='obj', function(obj, tbl) standardGeneric('explicitlySetOpenChromatin'))
 setGeneric('getOpenChromatin', signature='obj', function(obj) standardGeneric('getOpenChromatin'))
 setGeneric('findFimoTFBS', signature='obj', function(obj, motifs=NA, fimo.threshold=NA, chrom=NA, start=NA, end=NA, genome="hg38")
               standardGeneric('findFimoTFBS'))
@@ -111,6 +112,7 @@ setMethod('getGeneHancerRegion', 'TrenaMultiScore',
      function(obj){
         tbl <- getGeneRegulatoryRegions(getProject(obj))
         #tbl <- getEnhancers(getProject(obj))
+        obj@state$genehancer <- data.frame()
         if(nrow(tbl) == 0)
             return(tbl)
         obj@state$genehancer <- tbl
@@ -199,14 +201,15 @@ setMethod('getOpenChromatin', 'TrenaMultiScore',
 #'
 setMethod('findFimoTFBS', 'TrenaMultiScore',
 
-    function(obj, motifs=NA, fimo.threshold=NA, chrom=NA, start=NA, end=NA, genome="hg38"){
+    function(obj, motifs=list(), fimo.threshold=NA, chrom=NA, start=NA, end=NA, genome="hg38"){
 
        tbl.fp <- getOpenChromatin(obj)
+       printf("--- findFimoTFBS in %d regions of open chromatin", nrow(tbl.fp))
 
        if(nrow(tbl.fp) == 0)
           stop("TrenaMultiScore::getFimoTFBS error: no open chromatin regions previously identified.")
 
-       if(is.na(motifs))
+       if(length(motifs) == 0)
            motifs <- query(obj@motifDb, c("sapiens"), c("hocomocov11", "jaspar2018"))
 
        if(is.na(fimo.threshold))
@@ -222,10 +225,10 @@ setMethod('findFimoTFBS', 'TrenaMultiScore',
        meme.file <- "tmp.meme"
        MotifDb::export(motifs, con=meme.file, format="meme")
        source("~/github/fimoService/batchMode/fimoBatchTools.R")
-       sprintf("calling fimoBatch on %d regions, %5.3f threshold", nrow(tbl.fp), fimo.threshold)
+       printf("--- calling fimoBatch on %d regions, %e threshold", nrow(tbl.fp), fimo.threshold)
        tbl.fimo <- fimoBatch(tbl.fp, matchThreshold=fimo.threshold, genomeName=genome, pwmFile=meme.file)
        obj@state$fimo <- tbl.fimo
-       sprintf("tbl.fimo stored with %d rows, %d columns", nrow(tbl.fimo), ncol(tbl.fimo))
+       printf("--- tbl.fimo stored with %d rows, %d columns", nrow(tbl.fimo), ncol(tbl.fimo))
        }) # findFimoTFBS
 
 #------------------------------------------------------------------------------------------------------------------------
@@ -420,7 +423,9 @@ setMethod('addDistanceToTSS', 'TrenaMultiScore',
       coi <- c("tss", "strand", "chrom", "start", "end")
       targetGene.info <- as.list(getTranscriptsTable(getProject(obj))[coi])
       tbl <- getMultiScoreTable(obj)
-      tss <- (targetGene.info$tss - tbl$start)  * (targetGene.info$strand) * -1
+      tss <- NA_integer_
+      if(length(targetGene.info) > 0)
+         tss <- (targetGene.info$tss - tbl$start)  * (targetGene.info$strand) * -1
       tbl$tss <- tss
       obj@state$fimo <- tbl
       }) # addDistanceToTSS
@@ -469,10 +474,13 @@ setMethod('scoreMotifHitsForGeneHancer', 'TrenaMultiScore',
       if(nrow(tbl.fimo) == 0)
          stop("TrenaMultiScore::scoreMotifHitsForGeneHancer error: no fimo hits yet identified.")
 
-      tbl.ov <- as.data.frame(findOverlaps(GRanges(tbl.fimo), GRanges(tbl.gh)))
-      colnames(tbl.ov) <- c("fimo", "gh")
       tbl.fimo$gh <- rep(0, nrow(tbl.fimo))
-      tbl.fimo$gh[tbl.ov$fimo] <- round(tbl.gh$combinedscore[tbl.ov$gh], digits=2)
+      if(nrow(tbl.gh) > 0){
+         tbl.ov <- as.data.frame(findOverlaps(GRanges(tbl.fimo), GRanges(tbl.gh)))
+         colnames(tbl.ov) <- c("fimo", "gh")
+         tbl.fimo$gh[tbl.ov$fimo] <- round(tbl.gh$combinedscore[tbl.ov$gh], digits=2)
+         }
+
       rownames(tbl.fimo) <- NULL
       obj@state$fimo <- tbl.fimo
       }) # scoreMotifHitsForGeneHancer
@@ -544,7 +552,11 @@ setMethod('addGenicAnnotations', 'TrenaMultiScore',
       tbl.anno <- as.data.frame(gr.annoResults, row.names=NULL)
       coi <- c(existing.colnames, "annot.symbol", "annot.type")
       coi[1] <- "seqnames"  # bioc-speak for chromosome
-      tbl.aggregated <- aggregate(cbind(annot.type, annot.symbol) ~ seqnames+start+end+strand+tf, data=tbl.anno, function(x) paste(unique(x), collapse=","))
+      na.symbols <- which(is.na(tbl.anno$annot.symbol))
+      if(length(na.symbols) > 0)
+          tbl.anno$annot.symbol[na.symbols] <- "NA"
+      tbl.aggregated <- aggregate(cbind(annot.type, annot.symbol) ~ seqnames+start+end+strand+tf,
+                                  data=tbl.anno, function(x) paste(unique(x), collapse=","))
       tbl.aggregated$annot.type <- gsub("hg38_genes_", "", tbl.aggregated$annot.type)
       colnames(tbl.aggregated)[1] <- "chrom"
       tbl.aggregated$chrom <- as.character(tbl.aggregated$chrom)
