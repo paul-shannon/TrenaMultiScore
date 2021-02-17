@@ -1,0 +1,44 @@
+<h3> TrenaMultiScore Navigator</h3>
+
+For Marjorie Brand and Jeff Ranish.
+<p>
+  
+<ul>
+  <li> February 16th, 2021
+  <li> 298 target genes (selected by Marjorie)
+  <li> 849 transcription factors
+</ul>
+
+<hr>
+
+<div>
+
+<h5>Example 1: Identify gene/TF pairs mRNA-correlated early, but not overall</h5>
+
+<ol>
+  <li> ChIP: yes
+  <li> abs(corEarly): 0.85 - 1.0
+  <li> abs(cor): 0 - 0.3
+  <li> log(abs(tss)) < 2.8
+  <li> motif socre: 6-10
+  <li> 33 targetGenes, 11 TFs
+  <li> heavy enrichment for cholesterol biosynthesis:<br>
+      <i>"Increased cholesterol levels are known to promote proliferation and mobilization of HSCs..."</i>,<br>
+    <a href="https://pubmed.ncbi.nlm.nih.gov/31001203/" target="_blank">
+      The Roles of Cholesterol and Its Metabolites in Normal and Malignant Hematopoiesis, 2019
+     </a>
+</ol>
+
+
+<h5>Example 2: Identify gene/TF pairs mRNA-correlated mid and late timepoints, not early</h5>
+
+<ol>
+  <li> ChIP: yes
+  <li> abs(corEarly): 0 - 0.4
+  <li> abs(cor): 0.68 - 10.0
+  <li> log(abs(tss)) < 2.8
+  <li> motif socre: 6-10
+  <li> 19 targetGenes, 9 TFs
+  <li> Enriched for mitochondria &amp; electron transport chain
+</ol>
+</div>
