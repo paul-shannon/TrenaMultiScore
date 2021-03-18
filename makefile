@@ -1,6 +1,6 @@
-all:  docs install
+all:  roxy install
 
-docs:
+roxy:
 	R -e "devtools::document()"
 build:
 	(cd ..; R CMD build --no-build-vignettes TrenaMultiScore)

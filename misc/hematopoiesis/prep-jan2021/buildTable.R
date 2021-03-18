@@ -11,36 +11,6 @@ library(org.Hs.eg.db)
 if(!exists("tpe"))
     tpe <- TrenaProjectErythropoiesis(quiet=FALSE)
 #------------------------------------------------------------------------------------------------------------------------
-gois <- c("CHD4",
-          "AFP",
-          "AKAP4",
-          "ATP6V1B1-AS1",
-          "C10orf107",
-          "C1orf194",
-          "C8orf48",
-          "CALR3",
-          "CAMK2N2",
-          "CCL1",
-          "CLCA2",
-          "CYP4F11",
-          "DHRS2",
-          "DRD2",
-          "ENTHD1",
-          "EPB41L4A-AS2",
-          "HMMR-AS1",
-          "KRT16",
-          "LINC01602",
-          "LUM",
-          "MIP",
-          "MIR5581",
-          "MMP12",
-          "NLRP11",
-          "SLC25A48",
-          "SVEP1",
-          "TEX19",
-          "TMEM26",
-          "ZNF560")
-#------------------------------------------------------------------------------------------------------------------------
 runTests <- function()
 {
    test_getRegion()
@@ -85,7 +55,11 @@ test_CHD4 <- function()
    mtx <- getExpressionMatrix(tpe, "brandLabDifferentiationTimeCourse-27171x28-namesCorrected")
 
    addGeneExpressionCorrelations(tms.chd4, mtx)
+   timepoints <- c("day0.r1", "day0.r2", "day2.r1", "day2.r2", "day4.r1", "day4.r2")
+   addGeneExpressionCorrelations(tms.chd4, mtx, "corEarly", timepoints)
    addGenicAnnotations(tms.chd4)
+   addChIP(tms.chd4)
+
    tbl <- getMultiScoreTable(tms.chd4)
    tbl$targetGene <- "CHD4"
    tbl.strongHits <- as.data.frame(sort(table(subset(tbl, abs(cor) > 0.75 & p.value < 1e-6)$tf)))
@@ -215,8 +189,11 @@ test_goi <- function()
 build.one <- function(gene)
 {
    tms.gene <- TrenaMultiScore(tpe, gene);
-   getGeneHancerRegion(tms.gene)
-   findOpenChromatin(tms.gene)
+   x <- getGeneHancerRegion(tms.gene)
+   count <- findOpenChromatin(tms.gene)
+   if(count == 0)
+     return(data.frame())
+
    findFimoTFBS(tms.gene, fimo.threshold=1e-3)
    scoreMotifHitsForConservation(tms.gene)
    scoreMotifHitsForGeneHancer(tms.gene)
@@ -224,7 +201,10 @@ build.one <- function(gene)
 
    mtx <- getExpressionMatrix(tpe, "brandLabDifferentiationTimeCourse-27171x28-namesCorrected")
    addGeneExpressionCorrelations(tms.gene, mtx)
+   timepoints <- c("day0.r1", "day0.r2", "day2.r1", "day2.r2", "day4.r1", "day4.r2")
+   addGeneExpressionCorrelations(tms.gene, mtx, "corEarly", timepoints)
    addGenicAnnotations(tms.gene)
+   addChIP(tms.gene)
    tbl <- getMultiScoreTable(tms.gene)
    tbl$targetGene <- gene
 
@@ -241,3 +221,19 @@ test_build.one <- function()
 
 } # test_build.one
 #------------------------------------------------------------------------------------------------------------------------
+build.goi <- function()
+{
+  goi <- get.goi()
+  output.dir <- "out.27jan21"
+  if(!file.exists(output.dir))
+     dir.create(output.dir)
+
+  for(gene in goi[c(1:10, 122:length(goi))]){
+    tbl.gene <- build.one(gene)
+    save(tbl.gene, file=file.path(output.dir, sprintf("%s.RData", gene)))
+    } # for gene
+
+} # build.goi
+#------------------------------------------------------------------------------------------------------------------------
+if(!interactive())
+    build.goi()

@@ -29,6 +29,7 @@ runTests <- function()
    test_addGenicAnnotations()
    test_addGeneExpressionCorrelations()
    test_addChIP()
+   test_addRnaBindingProteins()
 
 } # runTests
 #------------------------------------------------------------------------------------------------------------------------
@@ -258,9 +259,9 @@ test_addGeneExpressionCorrelations <- function()
    tbl.fimo <- getMultiScoreTable(tms.hoxb4)
 
    mtx <- getExpressionMatrix(tpe, "brandLabDifferentiationTimeCourse-27171x28")
-   timepoints <- c("day0.r1", "day0.r2", "day2.r1", "day2.r2", "day4.r1", "day4.r2")
    addGeneExpressionCorrelations(tms.hoxb4, mtx)
 
+   timepoints <- c("day0.r1", "day0.r2", "day2.r1", "day2.r2", "day4.r1", "day4.r2")
    addGeneExpressionCorrelations(tms.hoxb4, mtx, "cor.early", timepoints)
    tbl <- getMultiScoreTable(tms.hoxb4)
    checkTrue(all(c("cor", "cor.early") %in% colnames(tbl)))
@@ -284,6 +285,22 @@ test_addGeneExpressionCorrelations <- function()
    checkTrue(all(is.na(subset(tbl, tf %in% tfs.noExpression)$cor.early)))
 
 } # test_addGeneExpressionCorrelations
+#------------------------------------------------------------------------------------------------------------------------
+test_addRnaBindingProteins <- function()
+{
+   message(sprintf("--- test_addRnaBindingProteins"))
+
+   tms.gata2 <- TrenaMultiScore(TrenaProjectErythropoiesis(), "GATA2", quiet=TRUE);
+   checkTrue(is.null(getRnaBindingProteins(tms.gata2)))
+
+   tbl.rbp <- addRnaBindingProteins(tms.gata2)
+   checkEquals(dim(tbl.rbp), c(2390, 12))
+
+      # now retrieve it again, without a fresh query
+   tbl.v2 <- getRnaBindingProteins(tms.gata2)
+   checkEquals(dim(tbl.rbp), c(2390, 12))
+
+} # test_addRnaBindingProteins
 #------------------------------------------------------------------------------------------------------------------------
 test_erythropoeisis.hoxb4 <- function()
 {
@@ -801,8 +818,6 @@ demo.ccl1.tpe <- function()
              } # if abs
           } # tf in cor
        } # for tf.this
-
-
 
 
 } # demo.ccl1.tpe

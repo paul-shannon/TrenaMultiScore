@@ -54,6 +54,8 @@ setGeneric('scoreMotifHitsForGeneHancer', signature='obj', function(obj) standar
 setGeneric('addGeneExpressionCorrelations', signature='obj', function(obj, mtx, featureName="cor", colnames=list()) standardGeneric('addGeneExpressionCorrelations'))
 setGeneric('addGenicAnnotations', signature='obj', function(obj) standardGeneric('addGenicAnnotations'))
 setGeneric('addChIP', signature='obj', function(obj) standardGeneric('addChIP'))
+setGeneric('addRnaBindingProteins', signature='obj', function(obj) standardGeneric('addRnaBindingProteins'))
+setGeneric('getRnaBindingProteins', signature='obj', function(obj) standardGeneric('getRnaBindingProteins'))
 #------------------------------------------------------------------------------------------------------------------------
 #' Define an object of class TrenaMultiScore
 #'
@@ -72,6 +74,7 @@ TrenaMultiScore <- function(trenaProject, targetGene, quiet=TRUE)
 {
    setTargetGene(trenaProject, targetGene)
    state <- new.env(parent=emptyenv())
+   state$quiet <- quiet
    state$openChromatin <- data.frame()
    state$fimo <- data.frame()
 
@@ -150,14 +153,17 @@ setMethod('findOpenChromatin', 'TrenaMultiScore',
             }
         if("TrenaProjectErythropoiesis" %in% is(getProject(obj))){
            obj@state$openChromatin <- .queryBrandLabATACseq(chrom, start, end)
-           message(sprintf("regions of Brand ATACseq open chromatin: %d", nrow(obj@state$openChromatin)))
+           if(!obj@state$quiet)
+               message(sprintf("regions of Brand ATACseq open chromatin: %d", nrow(obj@state$openChromatin)))
            }
         else if("TrenaProjectAD" %in% is(getProject(obj))){
            #obj@state$openChromatin <- .queryBocaATACseq(chrom, start, end)
            obj@state$openChromatin <- .queryHintFootprintRegionsFromDatabase("brain_hint_16", chrom, start, end)
-           message(sprintf("regions of open chromatin: %d", nrow(obj@state$openChromatin)))
+           if(!obj@state$quiet)
+              message(sprintf("regions of open chromatin: %d", nrow(obj@state$openChromatin)))
            }
         else stop(sprintf("no support for open chromatin retrieval in %s", getProject(obj)@projectName))
+        nrow(obj@state$openChromatin)
         })
 
 
@@ -204,7 +210,8 @@ setMethod('findFimoTFBS', 'TrenaMultiScore',
     function(obj, motifs=list(), fimo.threshold=NA, chrom=NA, start=NA, end=NA, genome="hg38"){
 
        tbl.fp <- getOpenChromatin(obj)
-       printf("--- findFimoTFBS in %d regions of open chromatin", nrow(tbl.fp))
+        if(!obj@state$quiet)
+            message(sprintf("--- findFimoTFBS in %d regions of open chromatin", nrow(tbl.fp)))
 
        if(nrow(tbl.fp) == 0)
           stop("TrenaMultiScore::getFimoTFBS error: no open chromatin regions previously identified.")
@@ -225,10 +232,12 @@ setMethod('findFimoTFBS', 'TrenaMultiScore',
        meme.file <- "tmp.meme"
        MotifDb::export(motifs, con=meme.file, format="meme")
        source("~/github/fimoService/batchMode/fimoBatchTools.R")
-       printf("--- calling fimoBatch on %d regions, %e threshold", nrow(tbl.fp), fimo.threshold)
+       if(!obj@state$quiet)
+          message(sprintf("--- calling fimoBatch on %d regions, %e threshold", nrow(tbl.fp), fimo.threshold))
        tbl.fimo <- fimoBatch(tbl.fp, matchThreshold=fimo.threshold, genomeName=genome, pwmFile=meme.file)
        obj@state$fimo <- tbl.fimo
-       printf("--- tbl.fimo stored with %d rows, %d columns", nrow(tbl.fimo), ncol(tbl.fimo))
+       if(!obj@state$quiet)
+         message(sprintf("--- tbl.fimo stored with %d rows, %d columns", nrow(tbl.fimo), ncol(tbl.fimo)))
        }) # findFimoTFBS
 
 #------------------------------------------------------------------------------------------------------------------------
@@ -618,3 +627,52 @@ setMethod('addChIP', 'TrenaMultiScore',
       }) # addChIP
 
 #------------------------------------------------------------------------------------------------------------------------
+#' query remote khaleesi (ingested POSTAR2) database for rna binding protein binding sites for the target gene
+#'
+#' @description
+#' POSTAR2 curated many clip-seq (and related) data sources; we put them in a postgres database, queried here by gene
+#'
+#' @rdname addRnaBindingProteins
+#'
+#' @param obj a TrenaMultiScore object
+#' @return data.frame
+#'
+#' @export
+#'
+setMethod('addRnaBindingProteins', 'TrenaMultiScore',
+
+    function(obj){
+      if(!obj@state$quiet)
+        message(sprintf("querying rbp database for %s", obj@targetGene))
+      geneRegDB <- dbConnect(PostgreSQL(), user= "trena", password="trena",
+                             dbname="genereg2021", host="khaleesi")
+      query <- sprintf("select * from rbp where target='%s'", obj@targetGene)
+      obj@state$tbl.rbp <- dbGetQuery(geneRegDB, query)
+      dbDisconnect(geneRegDB)
+      if(!obj@state$quiet)
+        message(sprintf("rbp binding sites found: %d", nrow(obj@state$tbl.rbp)))
+      invisible(obj@state$tbl.rbp)
+      }) # addRnaBindingProteins
+
+#------------------------------------------------------------------------------------------------------------------------
+#' return previously queried data.frame of rna binding protein binding sites for the target gene
+#'
+#' @description
+#' POSTAR2 curated many clip-seq (and related) data sources; current value is returned here
+#'
+#' @rdname getRnaBindingProteins
+#'
+#' @param obj a TrenaMultiScore object
+#' @return data.frame
+#'
+#' @export
+#'
+setMethod('getRnaBindingProteins', 'TrenaMultiScore',
+
+    function(obj){
+      invisible(obj@state$tbl.rbp)
+      }) # getRnaBindingProteins
+
+#------------------------------------------------------------------------------------------------------------------------
+
+
