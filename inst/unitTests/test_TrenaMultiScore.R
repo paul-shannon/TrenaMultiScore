@@ -72,8 +72,21 @@ test_findOpenChromatin <- function()
      #--------------------------------
      # now ask for the merged version
      #--------------------------------
-   findOpenChromatin(tmse, "chr3", start=128470539, end=128502070, use.merged.atac=TRUE)
-   tbl.oc <- getOpenChromatin(tmse)
+   findOpenChromatin(tmse, "chr5", start=98924291, end=98932918, use.merged.atac=TRUE)
+   tbl.oc.merged <- getOpenChromatin(tmse)
+   checkEquals(dim(tbl.oc.merged), c(1, 5))
+   #igv <- start.igv("CHD1", "hg38")
+   #track.merged <- DataFrameAnnotationTrack("merged", tbl.oc.merged, color="random")
+   #displayTrack(igv, track.merged)
+   #with(tbl.oc.merged, showGenomicRegion(igv, sprintf("%s:%d-%d", chrom, start-1000, end+1000)))
+
+   findOpenChromatin(tmse, "chr5", start=98924291, end=98932918, use.merged.atac=FALSE)
+   tbl.oc.orig <- getOpenChromatin(tmse)
+   checkEquals(dim(tbl.oc.orig), c(15, 7))
+   #reduce(GRanges(tbl.oc.orig))
+   #track.orig <- DataFrameAnnotationTrack("orig", tbl.oc.orig, color="random")
+   #displayTrack(igv, track.orig)
+   #with(tbl.oc.merged, showGenomicRegion(igv, sprintf("%s:%d-%d", chrom, start-1000, end+1000)))
 
 
    findOpenChromatin(tmsa, "chr3", start=128400000,
