@@ -4,7 +4,13 @@
 \alias{findOpenChromatin,TrenaMultiScore-method}
 \title{find open chromatin in the current gene region, or (if supplied) somewhere else}
 \usage{
-\S4method{findOpenChromatin}{TrenaMultiScore}(obj, chrom = NA, start = NA, end = NA)
+\S4method{findOpenChromatin}{TrenaMultiScore}(
+  obj,
+  chrom = NA,
+  start = NA,
+  end = NA,
+  use.merged.atac = FALSE
+)
 }
 \arguments{
 \item{obj}{a TrenaMultiScore object}

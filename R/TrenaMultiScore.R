@@ -38,7 +38,7 @@
 #------------------------------------------------------------------------------------------------------------------------
 setGeneric('getProject', signature='obj', function(obj) standardGeneric('getProject'))
 setGeneric('getGeneHancerRegion', signature='obj', function(obj) standardGeneric('getGeneHancerRegion'))
-setGeneric('findOpenChromatin', signature='obj', function(obj, chrom=NA, start=NA, end=NA)
+setGeneric('findOpenChromatin', signature='obj', function(obj, chrom=NA, start=NA, end=NA, use.merged.atac=FALSE)
               standardGeneric('findOpenChromatin'))
 #setGeneric('explicitlySetOpenChromatin', signature='obj', function(obj, tbl) standardGeneric('explicitlySetOpenChromatin'))
 setGeneric('getOpenChromatin', signature='obj', function(obj) standardGeneric('getOpenChromatin'))
@@ -144,7 +144,7 @@ setMethod('getGeneHancerRegion', 'TrenaMultiScore',
 #'
 setMethod('findOpenChromatin', 'TrenaMultiScore',
 
-     function(obj, chrom=NA, start=NA, end=NA){
+     function(obj, chrom=NA, start=NA, end=NA, use.merged.atac=FALSE){
          if(is.na(chrom)){
             tbl.x <- getGeneHancerRegion(obj)
             chrom <- tbl.x$chrom
@@ -152,7 +152,7 @@ setMethod('findOpenChromatin', 'TrenaMultiScore',
             end   <- tbl.x$end
             }
         if("TrenaProjectErythropoiesis" %in% is(getProject(obj))){
-           obj@state$openChromatin <- .queryBrandLabATACseq(chrom, start, end)
+           obj@state$openChromatin <- .queryBrandLabATACseq(chrom, start, end, use.merged.atac)
            if(!obj@state$quiet)
                message(sprintf("regions of Brand ATACseq open chromatin: %d", nrow(obj@state$openChromatin)))
            }
@@ -217,7 +217,7 @@ setMethod('findFimoTFBS', 'TrenaMultiScore',
           stop("TrenaMultiScore::getFimoTFBS error: no open chromatin regions previously identified.")
 
        if(length(motifs) == 0)
-           motifs <- query(obj@motifDb, c("sapiens"), c("hocomocov11", "jaspar2018"))
+          motifs <- query(obj@motifDb, c("sapiens"), c("hocomocov11a-core", "jaspar2018"))
 
        if(is.na(fimo.threshold))
           fimo.threshold <- 1e-4
@@ -293,9 +293,11 @@ setMethod('findMoodsTFBS', 'TrenaMultiScore',
        }) # findMoodsTFBS
 
 #------------------------------------------------------------------------------------------------------------------------
-.queryBrandLabATACseq <- function(chrom.loc, start.loc, end.loc)
+.queryBrandLabATACseq <- function(chrom.loc, start.loc, end.loc, use.merged.atac)
 {
   tbl.atac <- get(load("~/github/TrenaProjectErythropoiesis/misc/multiScore/brandAtacSeqCuration/tbl.atac.fp.RData"))
+  if(use.merged.atac)
+      tbl.atac <- get(load("~/github/TrenaProjectErythropoiesis/inst/extdata/genomicRegions/tbl.atacMerged.RData"))
   subset(tbl.atac, chrom==chrom.loc & start >= start.loc & end <= end.loc)
 
 } # .queryBrandLabATACseq
@@ -331,7 +333,6 @@ setMethod('findMoodsTFBS', 'TrenaMultiScore',
 
 } # .queryBocaATACseq
 #------------------------------------------------------------------------------------------------------------------------
-
 #' add conservation scores to the currently held fimo table
 #'
 #' @description

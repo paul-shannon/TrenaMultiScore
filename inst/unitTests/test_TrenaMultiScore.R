@@ -69,6 +69,13 @@ test_findOpenChromatin <- function()
    checkTrue(nrow(tbl.oc) > 12)
    checkEquals(ncol(tbl.oc), 7)
 
+     #--------------------------------
+     # now ask for the merged version
+     #--------------------------------
+   findOpenChromatin(tmse, "chr3", start=128470539, end=128502070, use.merged.atac=TRUE)
+   tbl.oc <- getOpenChromatin(tmse)
+
+
    findOpenChromatin(tmsa, "chr3", start=128400000,
                                      end=128500000) # start=128478422, end=128494187)
    checkEquals(nrow(getOpenChromatin(tmsa)), 10811)
@@ -88,13 +95,13 @@ test_findFimoTFBS <- function()
    findFimoTFBS(tmse)
    tbl.fimo <- getMultiScoreTable(tmse)
    checkEquals(ncol(tbl.fimo), 9)
-   checkTrue(nrow(tbl.fimo) > 10)
+   checkTrue(nrow(tbl.fimo) >= 2)
    checkTrue(all(c("SP2", "ZNF263") %in% tbl.fimo$tf))
 
    findFimoTFBS(tmse, fimo.threshold=1e-3)
    tbl.fimo <- getMultiScoreTable(tmse)
 
-   checkTrue(nrow(tbl.fimo) > 90)
+   checkTrue(nrow(tbl.fimo) > 30)
    checkTrue(all(c("SP2", "ZNF263", "CEBPB", "SP1") %in% tbl.fimo$tf)) # and many others
 
 } # test_findFimoTFBS
@@ -134,16 +141,16 @@ test_scoreMotifHitsForConservation <- function()
    findFimoTFBS(tmse, fimo.threshold=1e-5)
    tbl.fimo <- getMultiScoreTable(tmse)
    checkEquals(ncol(tbl.fimo), 9)
-   checkTrue(nrow(tbl.fimo) > 50)
+   checkTrue(nrow(tbl.fimo) >= 5)
 
    scoreMotifHitsForConservation(tmse)
 
    tbl <- getMultiScoreTable(tmse)
    checkEquals(ncol(tbl), 11)
-   checkTrue(nrow(tbl) > 50)
+   checkTrue(nrow(tbl) >= 5)
    #checkTrue(all(c("phast7", "phast30", "phast100") %in% colnames(tbl)))
    checkTrue(all(c("phast7", "phast100") %in% colnames(tbl)))
-   checkEqualsNumeric(mean(tbl$phast7), 0.57, tolerance=0.05)
+   checkEqualsNumeric(mean(tbl$phast7), 0.6, tolerance=0.05)
    #checkEqualsNumeric(mean(tbl$phast30), 0.66, tolerance=0.05)
    checkEqualsNumeric(mean(tbl$phast100), 0.77, tolerance=0.05)
 
@@ -170,7 +177,7 @@ test_addDistanceToTSS <- function()
    findFimoTFBS(tmse, fimo.threshold=1e-5)
    tbl.fimo <- getMultiScoreTable(tmse)
    checkEquals(ncol(tbl.fimo), 9)
-   checkTrue(nrow(tbl.fimo) > 100)
+   checkTrue(nrow(tbl.fimo) >= 15)
 
    scoreMotifHitsForConservation(tmse)
    addDistanceToTSS(tmse)
@@ -239,12 +246,12 @@ test_addChIP <- function()
    findFimoTFBS(tmse, fimo.threshold=1e-5)
    tbl.fimo <- getMultiScoreTable(tmse)
    checkEquals(ncol(tbl.fimo), 9)
-   checkTrue(nrow(tbl.fimo) > 50)
+   checkTrue(nrow(tbl.fimo) >= 5)
    addChIP(tmse)
    tbl.fimo <- getMultiScoreTable(tmse)
    checkEquals(ncol(tbl.fimo), 10)
-   checkTrue(nrow(tbl.fimo) > 50)
-   checkTrue(nrow(subset(tbl.fimo, chip)) > 15)
+   checkTrue(nrow(tbl.fimo) >= 5)
+   checkTrue(nrow(subset(tbl.fimo, chip)) >= 3)
 
 } # test_addChIP
 #------------------------------------------------------------------------------------------------------------------------
@@ -406,9 +413,11 @@ test_erythropoeisis.gata2 <- function()
    message(sprintf("--- test_erythropoeisis.gata2"))
 
    tms.gata2 <- TrenaMultiScore(tpe, "GATA2");
-   getGeneHancerRegion(tms.gata2)   # 190kb
+   region <- getGeneHancerRegion(tms.gata2)
+   with(region, 1 + end - start) # 548kb
    findOpenChromatin(tms.gata2)
-   findFimoTFBS(tms.gata2, fimo.threshold=1e-5)
+   motifs <- query(MotifDb, "sapiens", c("jaspar2018", "hocomocov11-core"))
+   findFimoTFBS(tms.gata2, motifs=motifs, fimo.threshold=1e-3)
    scoreMotifHitsForConservation(tms.gata2)
    scoreMotifHitsForGeneHancer(tms.gata2)
    addDistanceToTSS(tms.gata2)
