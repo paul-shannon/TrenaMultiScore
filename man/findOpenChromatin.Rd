@@ -9,6 +9,7 @@
   chrom = NA,
   start = NA,
   end = NA,
+  intersect.with.geneHancer = FALSE,
   use.merged.atac = FALSE
 )
 }

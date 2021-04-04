@@ -38,7 +38,10 @@
 #------------------------------------------------------------------------------------------------------------------------
 setGeneric('getProject', signature='obj', function(obj) standardGeneric('getProject'))
 setGeneric('getGeneHancerRegion', signature='obj', function(obj) standardGeneric('getGeneHancerRegion'))
-setGeneric('findOpenChromatin', signature='obj', function(obj, chrom=NA, start=NA, end=NA, use.merged.atac=FALSE)
+setGeneric('findOpenChromatin', signature='obj', function(obj, chrom=NA, start=NA, end=NA,
+                                                          intersect.with.geneHancer=FALSE,
+                                                          use.merged.atac=FALSE)
+
               standardGeneric('findOpenChromatin'))
 #setGeneric('explicitlySetOpenChromatin', signature='obj', function(obj, tbl) standardGeneric('explicitlySetOpenChromatin'))
 setGeneric('getOpenChromatin', signature='obj', function(obj) standardGeneric('getOpenChromatin'))
@@ -144,7 +147,7 @@ setMethod('getGeneHancerRegion', 'TrenaMultiScore',
 #'
 setMethod('findOpenChromatin', 'TrenaMultiScore',
 
-     function(obj, chrom=NA, start=NA, end=NA, use.merged.atac=FALSE){
+     function(obj, chrom=NA, start=NA, end=NA, intersect.with.geneHancer= FALSE, use.merged.atac=FALSE){
          if(is.na(chrom)){
             tbl.x <- getGeneHancerRegion(obj)
             chrom <- tbl.x$chrom
@@ -163,6 +166,18 @@ setMethod('findOpenChromatin', 'TrenaMultiScore',
               message(sprintf("regions of open chromatin: %d", nrow(obj@state$openChromatin)))
            }
         else stop(sprintf("no support for open chromatin retrieval in %s", getProject(obj)@projectName))
+        if(intersect.with.geneHancer){
+            tbl.oc <- obj@state$openChromatin
+            tbl.gh <- getGeneRegulatoryRegions(getProject(obj))
+            tbl.ov <- as.data.frame(findOverlaps(GRanges(tbl.oc), GRanges(tbl.gh)))
+            if(nrow(tbl.ov) == 0){
+                tbl.filtered <- data.frame()
+            } else {
+               tbl.filtered <- tbl.oc[tbl.ov[,1],]
+               }
+            message(sprintf("intersecting oc with gh: from %d to %d regions", nrow(tbl.oc), nrow(tbl.filtered)))
+            obj@state$openChromatin <- tbl.filtered
+            }
         nrow(obj@state$openChromatin)
         })
 
@@ -458,7 +473,7 @@ setMethod('getTargetGeneInfo', 'TrenaMultiScore',
 
     function(obj){
 
-      coi <- c("tss", "strand", "chrom", "start", "end")
+      coi <- c("geneSymbol", "tss", "strand", "chrom", "start", "end", "ensg")
       as.list(getTranscriptsTable(getProject(obj))[coi])
       }) # getTargetGeneInfo
 

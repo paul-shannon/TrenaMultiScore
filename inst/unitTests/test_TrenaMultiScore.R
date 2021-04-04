@@ -18,12 +18,12 @@ if(!exists("tmse")) {
 runTests <- function()
 {
    test_constructor()
+   test_getTargetGeneInfo()
    test_getGeneHancerRegion()
    test_findOpenChromatin()
    test_findFimoTFBS()
    # test_findMoodsTFBS()   FIMO is adequate, moods' contribution uncertain
    test_scoreMotifHitsForConservation()
-   test_getTargetGeneInfo()
    test_addDistanceToTSS()
    test_scoreMotifHitsForGeneHancer()
    test_addGenicAnnotations()
@@ -63,38 +63,52 @@ test_findOpenChromatin <- function()
 {
    message(sprintf("--- test_findOpenChromatin"))
 
-   findOpenChromatin(tmse, "chr3", start=128470539, end=128502070)
-   tbl.oc <- getOpenChromatin(tmse)
-   dim(tbl.oc)
-   checkTrue(nrow(tbl.oc) > 12)
-   checkEquals(ncol(tbl.oc), 7)
+     #--------------------------------------------------------------
+     # use a 1300 base region of chr19, upstream but not overlapping
+     # with the promoter of DOT1L
+     #--------------------------------------------------------------
+   tpe.dot1l <- TrenaProjectErythropoiesis()
+   tms <- TrenaMultiScore(tpe.dot1l, "DOT1L");
 
-     #--------------------------------
-     # now ask for the merged version
-     #--------------------------------
-   findOpenChromatin(tmse, "chr5", start=98924291, end=98932918, use.merged.atac=TRUE)
-   tbl.oc.merged <- getOpenChromatin(tmse)
-   checkEquals(dim(tbl.oc.merged), c(1, 5))
-   #igv <- start.igv("CHD1", "hg38")
-   #track.merged <- DataFrameAnnotationTrack("merged", tbl.oc.merged, color="random")
-   #displayTrack(igv, track.merged)
-   #with(tbl.oc.merged, showGenomicRegion(igv, sprintf("%s:%d-%d", chrom, start-1000, end+1000)))
+   findOpenChromatin(tms, "chr19", 2158968, 2160275,
+                     intersect.with.geneHancer=FALSE,
+                     use.merged.atac=TRUE)
 
-   findOpenChromatin(tmse, "chr5", start=98924291, end=98932918, use.merged.atac=FALSE)
-   tbl.oc.orig <- getOpenChromatin(tmse)
-   checkEquals(dim(tbl.oc.orig), c(15, 7))
-   #reduce(GRanges(tbl.oc.orig))
-   #track.orig <- DataFrameAnnotationTrack("orig", tbl.oc.orig, color="random")
-   #displayTrack(igv, track.orig)
-   #with(tbl.oc.merged, showGenomicRegion(igv, sprintf("%s:%d-%d", chrom, start-1000, end+1000)))
+   tbl.oc <- getOpenChromatin(tms)
+   checkEquals(dim(tbl.oc), c(2, 5))
 
+     #--------------------------------------------------------------
+     # now ask for only the oc/atac overlapping genehancer promoter
+     # should get nothing back
+     #-------------------------------------------------------------
+   findOpenChromatin(tms, "chr19", 2158968, 2160275,
+                     intersect.with.geneHancer=TRUE,
+                     use.merged.atac=TRUE)
 
-   findOpenChromatin(tmsa, "chr3", start=128400000,
-                                     end=128500000) # start=128478422, end=128494187)
-   checkEquals(nrow(getOpenChromatin(tmsa)), 10811)
+   tbl.oc <- getOpenChromatin(tms)
+   checkEquals(nrow(tbl.oc), 0)
 
-   tbl.oc2 <- getOpenChromatin(tmsa)
-   checkTrue(nrow(tbl.oc2) > 10000)
+     #--------------------------------------------------------------------------
+     # repeat with 6kb region with a merged atac overlapping genehancer promoter
+     # no overlap obliged on first call
+     #------------------------------------------------------------------------
+   findOpenChromatin(tms, "chr19", start=2158488, end=2164650,
+                     intersect.with.geneHancer=FALSE,
+                     use.merged.atac=TRUE)
+
+   tbl.oc <- getOpenChromatin(tms)
+   checkEquals(nrow(tbl.oc), 3)
+
+     #--------------------------------------------------------------------------
+     # repeat with 6kb region with a merged atac overlapping genehancer promoter
+     # overlap obliged on second call
+     #------------------------------------------------------------------------
+   findOpenChromatin(tms, "chr19", start=2158488, end=2164650,
+                     intersect.with.geneHancer=TRUE,
+                     use.merged.atac=TRUE)
+
+   tbl.oc <- getOpenChromatin(tms)
+   checkEquals(nrow(tbl.oc), 1)
 
 } # test_findOpenChromatin
 #------------------------------------------------------------------------------------------------------------------------
@@ -172,6 +186,7 @@ test_scoreMotifHitsForConservation <- function()
 test_getTargetGeneInfo <- function()
 {
    message(sprintf("--- test_getTargetGeneInfo"))
+
    x <- getTargetGeneInfo(tmse)
    checkTrue(all(c("tss", "strand", "chrom", "start", "end") %in% names(x)))
    checkEquals(x$tss, 128493185)
@@ -185,6 +200,7 @@ test_addDistanceToTSS <- function()
 
    tss <- getTargetGeneInfo(tmse)$tss
    shoulder <- 5000
+
    findOpenChromatin(tmse, "chr3", start=tss-(2*shoulder), end=tss+shoulder)
 
    findFimoTFBS(tmse, fimo.threshold=1e-5)
@@ -743,10 +759,10 @@ demo.ccl1.tpe <- function()
 {
    printf("--- demo.ccl1.tpe")
    tpe <- TrenaProjectErythropoiesis()
-   tmse <- TrenaMultiScore(tpe, "CCL1");
-   tbl.gh <- getGeneHancerRegion(tmse)    # 240k
-   with(tbl.gh, findOpenChromatin(tmse, chrom, start, end))
-   tbl.oc <- getOpenChromatin(tmse)
+   tms <- TrenaMultiScore(tpe, "CCL1");
+   tbl.gh <- getGeneHancerRegion(tms)    # 240k
+   with(tbl.gh, findOpenChromatin(tms, chrom, start, end))
+   tbl.oc <- getOpenChromatin(tms)
 
    tbl.corces.paul <- get(load("~/github/TrenaProjectErythropoiesis/misc/diffBind/corces/tbl.corces.hg38.scoredByPaul.RData"))
    tbl.corces.rory <- get(load("~/github/TrenaProjectErythropoiesis/misc/diffBind/corces/tbl.diffBind.rory.hg38.day0-4.RData"))
