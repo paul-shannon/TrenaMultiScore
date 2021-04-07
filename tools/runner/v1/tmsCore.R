@@ -16,8 +16,9 @@ TMS = R6Class("TMS",
                    tbl.rbp=NULL,
 		   tbl.trena=NULL,
 		   linear.model=NULL,
-                   tbl.lm=NULL,
-                   lm.adjustedRsquared=NULL,
+                   tbls.lm=NULL,
+                   lm.adjustedRsquareds=NULL,
+                   mtx.rna=NULL,
                    igv=NULL
                    ),
 
@@ -33,6 +34,8 @@ TMS = R6Class("TMS",
            private$targetGene <- targetGene
            private$tp <- trenaProject
            private$tms <- TrenaMultiScore(private$tp, targetGene)
+           private$tbls.lm <- list()
+           private$lm.adjustedRsquareds <- list()
            },
         addGeneHancer = function(){
            private$tbl.gh <- getEnhancers(private$tp, tissues="all", maxSize=20000)
@@ -121,6 +124,7 @@ TMS = R6Class("TMS",
             },
 
         add.tf.mrna.correlations = function(mtx.mrna, featureName){
+           private$mtx.rna <- mtx.mrna
            addGeneExpressionCorrelations(private$tms, mtx.mrna, featureName)
            },
 
@@ -144,9 +148,10 @@ TMS = R6Class("TMS",
                             solverNames=c("lasso", "Ridge", "Spearman", "Pearson", "RandomForest", "xgboost"))
               tbl.out <- run(solver)
               })
-	   private$tbl.trena <- tbl.out
            new.order <- order(tbl.out[, order.by.column], decreasing=decreasing.order)
-	   tbl.out[new.order,]
+	   tbl.out <- tbl.out[new.order,]
+	   private$tbl.trena <- tbl.out
+           tbl.out
 	   },
 
         get.trena.model = function(){
@@ -159,7 +164,7 @@ TMS = R6Class("TMS",
            top.tfs <- private$tbl.trena$gene
 	   if(length(top.tfs) > candidate.regulator.max)
 	     top.tfs <- head(top.tfs, n=candidate.regulator.max)
-           formula <- as.formula(sprintf("%s ~ 1 + .", private$targetGene))
+           formula <- as.formula(sprintf("%s ~ 0 + .", private$targetGene))
 	   tbl.data <- as.data.frame(t(mtx))[, c(private$targetGene, top.tfs)]
            model <- lm(formula, data=tbl.data)
 	   private$linear.model <- model
@@ -171,17 +176,36 @@ TMS = R6Class("TMS",
            rbp.indices <- which(rownames(tbl.lm) %in% private$tbl.rbp$gene)
            class[rbp.indices] <- "rbp"
            tbl.lm$class <- class
-           private$tbl.lm <- tbl.lm
-           private$lm.adjustedRsquared <- summary(model)$adj.r.squared
+           tbl.tms <- self$getTfTable()
+           tfCount <- unlist(lapply(rownames(tbl.lm), function(tf.name) nrow(subset(tbl.tms, tf==tf.name))))
+           tbl.lm$chip  <- unlist(lapply(rownames(tbl.lm), function(tf.name) nrow(subset(tbl.tms, tf==tf.name & chip))))
+           rbpCount <- rep(0, nrow(tbl.lm))
+           rbp.indices <- which(tbl.lm$class == "rbp")
+           if(length(rbp.indices) > 0){
+              rbp.names <-  rownames(tbl.lm)[rbp.indices]
+              counts <- unlist(lapply(rbp.names, function(name) nrow(subset(private$tbl.rbp, gene==name))))
+              rbpCount[rbp.indices] <- counts
+              }
+           tbl.lm$count <- tfCount + rbpCount
+           correlated.expression <- unlist(lapply(rownames(tbl.lm),
+                function(gene) if(gene %in% rownames(mtx)) cor(mtx[gene, ], mtx[private$targetGene,]) else 0))
+           correlated.expression <- round(correlated.expression, digits=2)
+           tbl.lm$cor <- correlated.expression
+           private$tbls.lm[[sort.by.column]] <- tbl.lm
+           private$lm.adjustedRsquareds[[sort.by.column]] <- summary(model)$adj.r.squared
 	   invisible(tbl.lm)
            },
 
-        get.lm.table = function(){
-           private$tbl.lm
+        get.lm.tables = function(){
+           private$tbls.lm
            },
 
-        get.lm.Rsquared = function(){
-           private$lm.adjustedRsquared
+        get.lm.Rsquareds = function(){
+           private$lm.adjustedRsquareds
+           },
+
+        get.mtx.rna = function(){
+           invisible(private$mtx.rna)
            }
 
         #------------------------------------------------------------

@@ -52,17 +52,23 @@ runTMS <- function(targetGene, chrom, start, end, mtx.rna)
     fivenum(tbl.rbp$cor.all)
     dim(tbl.rbp)  # 7652   13
 
-    tfs <- unique(subset(tbl.tms, gh > 600 & abs(cor.all) > 0.5)$tf)
-    printf("candiate tfs: %d", length(tfs))
+    tfs <- unique(subset(tbl.tms, abs(cor.all) > 0.5)$tf)
+    printf("candidate tfs: %d", length(tfs))
     rbps <- unique(subset(tbl.rbp, celltype=="K562" & abs(cor.all) > 0.5)$gene)
     printf("candidate rbps in K562 cells: %d", length(rbps))
     #tbl.trena.tf <- x$build.trena.model(tfs, list(), mtx.rna)
     #dim(tbl.trena.tf)  # 8 7
     tbl.trena.both <- x$build.trena.model(tfs, rbps, mtx.rna)
-    tbl.model <- x$build.linear.model(mtx.rna, sort.by.column="spearmanCoeff", candidate.regulator.max=15)
+    linear.models <- list()
+    linear.models[["spearman"]] <- x$build.linear.model(mtx.rna, sort.by.column="spearmanCoeff", candidate.regulator.max=15)
+    linear.models[["pearson"]] <- x$build.linear.model(mtx.rna, sort.by.column="spearmanCoeff", candidate.regulator.max=15)
+    linear.models[["betaLasso"]] <- x$build.linear.model(mtx.rna, sort.by.column="betaLasso", candidate.regulator.max=15)
+    linear.models[["betaRidge"]] <- x$build.linear.model(mtx.rna, sort.by.column="betaRidge", candidate.regulator.max=15)
+    linear.models[["rfScore"]] <- x$build.linear.model(mtx.rna, sort.by.column="rfScore", candidate.regulator.max=15)
+    linear.models[["xgboose"]] <- x$build.linear.model(mtx.rna, sort.by.column="xgboost", candidate.regulator.max=15)
     printf("--- modeling %s", targetGene)
-    print(subset(tbl.model, p.value <= 0.2))
-    printf("adjusted r-squared: %5.2f", x$get.lm.Rsquared())
+    #print(subset(tbl.model, p.value <= 0.2))
+    #printf("adjusted r-squared: %5.2f", x$get.lm.Rsquared())
     return(x)
 
 } # runTMS
