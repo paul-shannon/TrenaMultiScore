@@ -311,8 +311,9 @@ setMethod('findMoodsTFBS', 'TrenaMultiScore',
 .queryBrandLabATACseq <- function(chrom.loc, start.loc, end.loc, use.merged.atac)
 {
   tbl.atac <- get(load("~/github/TrenaProjectErythropoiesis/misc/multiScore/brandAtacSeqCuration/tbl.atac.fp.RData"))
-  if(use.merged.atac)
+  if(use.merged.atac){
       tbl.atac <- get(load("~/github/TrenaProjectErythropoiesis/inst/extdata/genomicRegions/tbl.atacMerged.RData"))
+      }
   subset(tbl.atac, chrom==chrom.loc & start >= start.loc & end <= end.loc)
 
 } # .queryBrandLabATACseq
