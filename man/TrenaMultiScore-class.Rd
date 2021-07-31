@@ -7,10 +7,22 @@
 \alias{TrenaMultiScore}
 \title{TrenaMultiScore-class}
 \usage{
-TrenaMultiScore(trenaProject, targetGene, quiet = TRUE)
+TrenaMultiScore(
+  trenaProject,
+  targetGene,
+  tbl.fimo = data.frame(),
+  tbl.oc = data.frame(),
+  quiet = TRUE
+)
 }
 \arguments{
 \item{trenaProject}{a concrete subclass of TrenaProject}
+
+\item{targetGene}{a character string}
+
+\item{tbl.fimo}{a data.frame, empty or with fimo matches calculated separate}
+
+\item{quiet}{logical}
 }
 \value{
 An object of the TrenaMultiScore class

@@ -8,6 +8,7 @@
 #' @importFrom AnnotationDbi select
 #' @import org.Hs.eg.db
 #' @import RPostgreSQL
+#' @import ghdb
 #'
 #' @import GenomicRanges
 #' @import GenomicScores
@@ -59,6 +60,7 @@ setGeneric('addGenicAnnotations', signature='obj', function(obj) standardGeneric
 setGeneric('addChIP', signature='obj', function(obj) standardGeneric('addChIP'))
 setGeneric('addRnaBindingProteins', signature='obj', function(obj) standardGeneric('addRnaBindingProteins'))
 setGeneric('getRnaBindingProteins', signature='obj', function(obj) standardGeneric('getRnaBindingProteins'))
+setGeneric('scoreMotifHitsForOpenChromatin', signature='obj', function(obj) standardGeneric('scoreMotifHitsForOpenChromatin'))
 #------------------------------------------------------------------------------------------------------------------------
 #' Define an object of class TrenaMultiScore
 #'
@@ -67,22 +69,25 @@ setGeneric('getRnaBindingProteins', signature='obj', function(obj) standardGener
 #'
 #' @rdname TrenaMultiScore-class
 #' @param trenaProject a concrete subclass of TrenaProject
+#' @param targetGene a character string
+#' @param tbl.fimo a data.frame, empty or with fimo matches calculated separate
+#' @param quiet logical
 #'
 #' @export
 #'
 #' @return An object of the TrenaMultiScore class
 #'
 
-TrenaMultiScore <- function(trenaProject, targetGene, quiet=TRUE)
+TrenaMultiScore <- function(trenaProject, targetGene, tbl.fimo=data.frame(), tbl.oc=data.frame(), quiet=TRUE)
 {
    setTargetGene(trenaProject, targetGene)
    state <- new.env(parent=emptyenv())
    state$quiet <- quiet
-   state$openChromatin <- data.frame()
-   state$fimo <- data.frame()
+   state$openChromatin <- tbl.oc
+   state$genehancer <- data.frame()
+   state$fimo <- tbl.fimo
 
-   .TrenaMultiScore(trenaProject=trenaProject, targetGene=targetGene, motifDb=MotifDb,
-                    state=state)
+   .TrenaMultiScore(trenaProject=trenaProject, targetGene=targetGene, motifDb=MotifDb, state=state)
 
 } # TrenaMultiScore, the constructor
 #------------------------------------------------------------------------------------------------------------------------
@@ -106,7 +111,7 @@ setMethod('getProject', 'TrenaMultiScore',
 #' return the full extent of GeneHancer regions for the targetGene
 #'
 #' @description
-#' GeneHancer has distal enhancers withing ~1MB of the gene; return that region
+#' GeneHancer often reports distal enhancers within ~1MB of the gene; return that region
 #'
 #' @rdname getGeneHancerRegion
 #' @return a data.frame
@@ -116,16 +121,13 @@ setMethod('getProject', 'TrenaMultiScore',
 setMethod('getGeneHancerRegion', 'TrenaMultiScore',
 
      function(obj){
-        tbl <- getGeneRegulatoryRegions(getProject(obj))
-        #tbl <- getEnhancers(getProject(obj))
-        obj@state$genehancer <- data.frame()
-        if(nrow(tbl) == 0)
-            return(tbl)
-        obj@state$genehancer <- tbl
-        start <- min(tbl$start) - 1000
-        end <- max(tbl$end) + 1000
+        ghdb <- GeneHancerDB()
+        tbl.gh <- retrieveEnhancersFromDatabase(ghdb, obj@targetGene, tissues="all")
+        obj@state$genehancer <- tbl.gh
+        start <- min(tbl.gh$start) - 1000
+        end <- max(tbl.gh$end) + 1000
         width <- 1 + end - start
-        data.frame(chrom=tbl$chrom[1],
+        data.frame(chrom=tbl.gh$chrom[1],
                    start=start, end=end, width=width,
                    stringsAsFactors=FALSE)
 
@@ -224,8 +226,11 @@ setMethod('findFimoTFBS', 'TrenaMultiScore',
 
     function(obj, motifs=list(), fimo.threshold=NA, chrom=NA, start=NA, end=NA, genome="hg38"){
 
+           # fimo table may have been build separately, do not repeat.
+       if(nrow(obj@state$fimo) > 1) return
+
        tbl.fp <- getOpenChromatin(obj)
-        if(!obj@state$quiet)
+       if(!obj@state$quiet)
             message(sprintf("--- findFimoTFBS in %d regions of open chromatin", nrow(tbl.fp)))
 
        if(nrow(tbl.fp) == 0)
@@ -319,6 +324,11 @@ setMethod('findMoodsTFBS', 'TrenaMultiScore',
 #------------------------------------------------------------------------------------------------------------------------
 .queryHintFootprintRegionsFromDatabase <- function(database.name, chrom.loc, start.loc, end.loc)
 {
+  suppressWarnings(
+    db.access.test <- try(system("/sbin/ping -c 1 khaleesi", intern=TRUE, ignore.stderr=TRUE)))
+  if(length(db.access.test) == 0)
+     stop("khaleesi database server unavailable")
+
    db <- dbConnect(PostgreSQL(), user= "trena", password="trena", dbname="brain_hint_16", host="khaleesi")
    query <- sprintf("select * from regions where chrom='%s' and start >= %d and endpos <= %d",
                     chrom.loc, start.loc, end.loc)
@@ -347,6 +357,42 @@ setMethod('findMoodsTFBS', 'TrenaMultiScore',
   tbl.reduced
 
 } # .queryBocaATACseq
+#------------------------------------------------------------------------------------------------------------------------
+#' add open chromatin intersection info (none, partial, complete for the currently held fimo table
+#'
+#' @description
+#'   adds "none", "partial", "complete" annotation to the "oc" column for each motif hit in the
+#'   already built (or supplied) fimo table, using the current obj@state$openChromatin table
+#'
+#'
+#' @rdname scoreMotifHitsForConservation
+#'
+#' @param obj a TrenaMultiScore object
+#' @return a data.frame
+#'
+#' @export
+#'
+setMethod('scoreMotifHitsForOpenChromatin', 'TrenaMultiScore',
+
+    function(obj){
+
+      tbl.fimo <- obj@state$fimo
+      tbl.oc <- obj@state$openChromatin
+      stopifnot(nrow(tbl.oc) > 0)
+      gr.fimo <- GRanges(seqnames=tbl.fimo$chrom, IRanges(tbl.fimo$start, tbl.fimo$end))
+      gr.oc   <- GRanges(seqnames=tbl.oc$chrom, IRanges(tbl.oc$start, tbl.oc$end))
+      tbl.ov  <- as.data.frame(findOverlaps(gr.oc, gr.fimo, type="any"))
+      openChromatin <- rep(FALSE, nrow(tbl.fimo))
+      if(nrow(tbl.ov) > 0){
+         hits <- unique(tbl.ov$subjectHits)
+         openChromatin[hits] <- TRUE
+         }
+      tbl.fimo$oc <- openChromatin
+      rownames(tbl.fimo) <- NULL
+      obj@state$fimo <- tbl.fimo
+      }) # scoreMotifHitsForOpenChromatin
+
+
 #------------------------------------------------------------------------------------------------------------------------
 #' add conservation scores to the currently held fimo table
 #'
@@ -415,6 +461,10 @@ setMethod('getMultiScoreTable', 'TrenaMultiScore',
     function(obj){
 
       tbl.fimo <- obj@state$fimo
+      if("score" %in% colnames(tbl.fimo))
+          colnames(tbl.fimo)[grep("score", colnames(tbl.fimo))] <- "fimo_score"
+      if("p.value" %in% colnames(tbl.fimo))
+          colnames(tbl.fimo)[grep("p.value", colnames(tbl.fimo))] <- "fimo_pvalue"
 
       if("motif_id" %in% colnames(tbl.fimo)){ # can be quite long, move it to the end
          current.index <- grep("motif_id", colnames(tbl.fimo))
@@ -494,6 +544,8 @@ setMethod('scoreMotifHitsForGeneHancer', 'TrenaMultiScore',
 
     function(obj){
 
+      if(nrow(obj@state$genehancer) == 0)
+         getGeneHancerRegion(obj)
       tbl.gh <- obj@state$genehancer
       tbl.fimo <- obj@state$fimo
       if(nrow(tbl.fimo) == 0)

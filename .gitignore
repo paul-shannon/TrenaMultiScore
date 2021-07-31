@@ -1,3 +1,4 @@
+*.RData
 inst/extdata/phastCons30way.UCSC.hg38.downloaded.RData
 misc/erythropoiesis/marjorieDemos/collectResults/*.RData
 *.sqlite
@@ -8,7 +9,6 @@ misc/erythropoiesis/marjorieDemos/collectResults/*.RData
 .Rapp.history
 
 # Session Data files
-*.RData
 
 # User-specific files
 .Ruserdata

@@ -1,5 +1,5 @@
 library(RUnit)
-source("./tmsCore.R")
+source("~/github/TrenaMultiScore/tools/runner/v1/tmsCore.R")
 mtx.tmp <- get(load("~/github/TrenaProjectErythropoiesis/viz/srm.vs.mrna/shinyapps.io/srm.rna.averaged.clean.RData"))
 mtx.srm.conformant <- get(load("~/github/TrenaProjectErythropoiesis/inst/extdata/expression/mtx.srm-conformant.RData"))
 mtx.itraq.conformant <- get(load("~/github/TrenaProjectErythropoiesis/inst/extdata/expression/mtx.itraq-conformant.RData"))

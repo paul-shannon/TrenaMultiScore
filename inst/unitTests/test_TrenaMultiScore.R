@@ -4,7 +4,7 @@ library(TrenaProjectAD)
 library(RUnit)
 library(factoextra)
 library(ghdb)
-
+library(RPostgreSQL)
 #------------------------------------------------------------------------------------------------------------------------
 if(!exists("tmse")) {
    message(sprintf("--- creating instance of TrenaMultiScore"))
@@ -857,8 +857,82 @@ demo.ccl1.tpe <- function()
           } # tf in cor
        } # for tf.this
 
-
 } # demo.ccl1.tpe
+#------------------------------------------------------------------------------------------------------------------------
+demo.ndufs2.tpad <- function()
+{
+   message(sprintf("--- demo.ndufs2.tpad"))
+
+   targetGene <- "NDUFS2"
+   tpad <- TrenaProjectAD()
+
+   tbl.fimo <- get(load(system.file(package="TrenaMultiScore", "extdata", "ndufs2-fimo3-2kb-continuous.RData")))
+   dim(tbl.fimo)
+   tbl.oc <- get(load(system.file(package="TrenaMultiScore", "extdata", "ndufs2-hint16-footprints-2kb-RData")))
+   dim(tbl.oc)
+   checkEquals(colnames(tbl.oc), c("chrom", "start", "end"))
+
+   tms <- TrenaMultiScore(tpad, targetGene, tbl.fimo, tbl.oc, quiet=FALSE)
+   mtx.rna <- get(load("~/github/TrenaProjectAD/inst/extdata/expression/mayo.tcx.16969x262.covariateCorrection.log+scale.RData"))
+   scoreMotifHitsForOpenChromatin(tms)
+   scoreMotifHitsForConservation(tms)
+   scoreMotifHitsForGeneHancer(tms)
+   addDistanceToTSS(tms)
+   addGenicAnnotations(tms)
+   addChIP(tms)
+   addGeneExpressionCorrelations(tms, mtx.rna)
+   tbl.tms <- getMultiScoreTable(tms)
+   dim(tbl.tms)  # 5274 18
+
+   igv <- start.igv(targetGene, "hg38")
+   zoomOut(igv)
+
+   library(ghdb)
+   ghdb <- GeneHancerDB()
+   tbl.gh <- retrieveEnhancersFromDatabase(ghdb, targetGene, tissues="all")
+   tbl.gh$score <- asinh(tbl.gh$combinedscore)
+   track <- DataFrameQuantitativeTrack("GH", tbl.gh[, c("chrom", "start", "end", "score")],
+                                       autoscale=TRUE, color="brown")
+   displayTrack(igv, track)
+
+   print(load("~/github/TrenaProjectAD/explore/mayo-epigenetics/atac/earlyResultMayoWholeGenome.RData"))
+   colnames(tbl.dba)[1] <- "chrom"
+   tbl.dba$chrom <- as.character(tbl.dba$chrom)
+   roi <- getGenomicRegion(igv)
+   roi
+   tbl.track <- subset(tbl.dba, chrom==roi$chrom & start >= roi$start & end <= roi$end)
+   dim(tbl.track)
+   track <- DataFrameAnnotationTrack("atac", tbl.track, color="brown")
+   displayTrack(igv, track)
+
+   tag.snp <- "rs4575098"
+   ld.snp <-   "rs11585858" #  0.98 LD with 5098
+
+   require("EndophenotypeExplorer")
+   etx <- EndophenotypeExplorer$new(targetGene, "hg38")
+   rsid.list <- c(tag.snp, ld.snp)
+   tbl.locs <- etx$rsidToLoc(rsid.list)
+
+   tbl.track <- tbl.locs[, c("chrom", "hg38", "hg38")]
+   colnames(tbl.track) <- c("chrom", "start", "end")
+   tbl.track$start <- tbl.track$start - 1
+   track <- DataFrameAnnotationTrack("snps", tbl.track, "red", trackHeight=24)
+   displayTrack(igv, track)
+
+
+   tbl.sub <- subset(tbl.tms, abs(cor) > 0.75)
+   dim(tbl.sub)
+   tfs <- unique(tbl.sub$tf)
+   length(tfs) # 8
+   for(TF in tfs){
+     tbl.track <- subset(tbl.sub, tf==TF)[, c("chrom", "start", "end", "p.value")]
+     tbl.track$score <- -log10(tbl.track$p.value)
+     tbl.track <- tbl.track[, c("chrom", "start", "end", "score")]
+     track <- DataFrameQuantitativeTrack(TF, tbl.track, autoscale=TRUE, color="random")
+     displayTrack(igv, track)
+     } # for TF
+
+} # demo.ndfus2.tpad
 #------------------------------------------------------------------------------------------------------------------------
 
 if(!interactive())

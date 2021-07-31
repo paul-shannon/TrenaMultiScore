@@ -10,5 +10,5 @@
 a data.frame
 }
 \description{
-GeneHancer has distal enhancers withing ~1MB of the gene; return that region
+GeneHancer often reports distal enhancers within ~1MB of the gene; return that region
 }
