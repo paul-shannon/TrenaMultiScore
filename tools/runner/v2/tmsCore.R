@@ -25,7 +25,7 @@ TMS = R6Class("TMS",
     #--------------------------------------------------------------------------------
     public = list(
 
-        initialize = function(targetGene, trenaProject){
+        initialize = function(trenaProjec, targetGene, tbl.fimo=data.frame(), tbl.oc=data.frame(), quiet=TRUE){
            suppressWarnings(db.access.test <-
                                 try(system("/sbin/ping -c 1 khaleesi", intern=TRUE, ignore.stderr=TRUE)))
            if(length(db.access.test) == 0)
@@ -33,7 +33,7 @@ TMS = R6Class("TMS",
            printf("initializing TMS('%s')", targetGene)
            private$targetGene <- targetGene
            private$tp <- trenaProject
-           private$tms <- TrenaMultiScore(private$tp, targetGene)
+           private$tms <- TrenaMultiScore(private$tp, targetGene, tbl.fimo, tbl.oc, quiet)
            private$tbls.lm <- list()
            private$lm.adjustedRsquareds <- list()
            },
@@ -82,6 +82,7 @@ TMS = R6Class("TMS",
               start <- tbl.gh.promoter$start[biggest]
               end   <- tbl.gh.promoter$end[biggest]
               }
+           browser()
            invisible(findOpenChromatin(private$tms, chrom, start, end,
                                        intersect.with.genehancer,
                                        use.merged.atac=TRUE))
@@ -96,9 +97,12 @@ TMS = R6Class("TMS",
                s <- sprintf("no motif hits at threshold %f", fimo.threshold)
                stop(s)
                }
+           },
+        scoreFimoTFBS = function(){
            addChIP(private$tms)
            scoreMotifHitsForConservation(private$tms)
            scoreMotifHitsForGeneHancer(private$tms)
+           scoreMotifHitsForOpenChromatin(private$tms)
            addGenicAnnotations(private$tms)
            addDistanceToTSS(private$tms)
            },
@@ -150,6 +154,14 @@ TMS = R6Class("TMS",
               })
            new.order <- order(tbl.out[, order.by.column], decreasing=decreasing.order)
 	   tbl.out <- tbl.out[new.order,]
+           class <- rep("tf", nrow(tbl.out))
+           if(nrow(private$tbl.rbp) > 0){
+               rbps.in.model <- intersect(tbl.out$gene, private$tbl.rbp$gene)
+               indices <- match(rbps.in.model, tbl.out$gene)
+               class[indices] <- "rbp"
+           }
+           tbl.out$class <- class
+           rownames(tbl.out) <- NULL
 	   private$tbl.trena <- tbl.out
            tbl.out
 	   },

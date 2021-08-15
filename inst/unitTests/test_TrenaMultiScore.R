@@ -884,6 +884,11 @@ demo.ndufs2.tpad <- function()
    tbl.tms <- getMultiScoreTable(tms)
    dim(tbl.tms)  # 5274 18
 
+   checkTrue(mean(tbl.tms$gh) > 0)
+   checkEquals(as.numeric(as.list(table(tbl.tms$oc))), c(1667, 3607)) # FALSE, TRUE
+
+   checkEquals(as.numeric(as.list(table(tbl.tms$chip))), c(4352, 922)) # FALSE, TRUE
+
    igv <- start.igv(targetGene, "hg38")
    zoomOut(igv)
 

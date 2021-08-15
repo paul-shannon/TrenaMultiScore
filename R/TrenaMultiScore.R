@@ -547,6 +547,8 @@ setMethod('scoreMotifHitsForGeneHancer', 'TrenaMultiScore',
       if(nrow(obj@state$genehancer) == 0)
          getGeneHancerRegion(obj)
       tbl.gh <- obj@state$genehancer
+      if(!grepl("chr", tbl.gh$chrom[1]))
+         tbl.gh$chrom <- paste0("chr", tbl.gh$chrom)
       tbl.fimo <- obj@state$fimo
       if(nrow(tbl.fimo) == 0)
          stop("TrenaMultiScore::scoreMotifHitsForGeneHancer error: no fimo hits yet identified.")
@@ -582,23 +584,32 @@ setMethod('addGeneExpressionCorrelations', 'TrenaMultiScore',
 
     function(obj, mtx, featureName="cor", colnames=list()){
 
+      if(!obj@state$quiet){
+         printf("TMS::addGeneExpressionCorrelations, '%s'", featureName)
+         }
+
       if(length(colnames) > 0){
          stopifnot(all(colnames %in% colnames(mtx)))
          mtx <- mtx[, colnames]
          }
+
       tbl.fimo <- obj@state$fimo
       if(nrow(tbl.fimo) == 0)
          stop("TrenaMultiScore::addGeneExpressionCorrelations error: no fimo hits yet identified.")
 
       f <- function(tf){
          if(tf %in% rownames(mtx))
-           return(cor(mtx[obj@targetGene,], mtx[tf,], method="spearman"))
+           return(cor(mtx[obj@targetGene,], mtx[tf,], method="pearson", use="pairwise.complete.obs"))
          else return(NA)
          }
 
-      suppressWarnings(
+      if(!obj@state$quiet){
+         printf("about to run spearman cor on %d tfs from tbl.fimo", length(tbl.fimo$tf))
+         }
+
+      suppressWarnings({
           cor <- unlist(lapply(tbl.fimo$tf, f))
-          )
+          })
 
       cor <- round(cor, digits=2)
       tbl.fimo[, featureName] <- cor
