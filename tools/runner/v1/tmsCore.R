@@ -27,7 +27,7 @@ TMS = R6Class("TMS",
 
         initialize = function(targetGene, trenaProject){
            suppressWarnings(db.access.test <-
-                                try(system("/sbin/ping -c 1 khaleesi", intern=TRUE, ignore.stderr=TRUE)))
+                                try(system("ping -c 1 khaleesi", intern=TRUE, ignore.stderr=TRUE)))
            if(length(db.access.test) == 0)
               stop("khaleesi database server unavailable")
            printf("initializing TMS('%s')", targetGene)
@@ -62,7 +62,6 @@ TMS = R6Class("TMS",
               track <- DataFrameAnnotationTrack("atac", tbl.atac.gene, color="red")
               displayTrack(private$igv, track)
               tbl.ov <- as.data.frame(findOverlaps(GRanges(tbl.gh.tmp), GRanges(tbl.atac.gene)))
-              browser()
               tbl.atac.gh <- tbl.atac.gene[unique(tbl.ov[,2]),]
               track <- DataFrameAnnotationTrack("atac+gh", tbl.atac.gh, color="darkblue")
               displayTrack(private$igv, track)
@@ -82,7 +81,7 @@ TMS = R6Class("TMS",
               start <- tbl.gh.promoter$start[biggest]
               end   <- tbl.gh.promoter$end[biggest]
               }
-           invisible(findOpenChromatin(private$tms, chrom, start, end,
+            invisible(findOpenChromatin(private$tms, chrom, start, end,
                                        intersect.with.genehancer,
                                        use.merged.atac=TRUE))
            },
@@ -213,3 +212,58 @@ TMS = R6Class("TMS",
     ) # class
 
 #--------------------------------------------------------------------------------
+test.tmsCore <- function(){
+    require("TrenaProjectErythropoiesis")
+    trenaProject <- TrenaProjectErythropoiesis()
+    targetGene <- "BACH1"
+    x <- TMS$new(targetGene, trenaProject)
+    x$addGeneHancer()
+    tbl.gh <- x$getGeneHancer()
+    max.score <- max(tbl.gh$combinedscore)
+    tbl.gh.promoter <- subset(tbl.gh, combinedscore == max.score)[1,]
+    chrom <- tbl.gh.promoter$chrom
+    start <- tbl.gh.promoter$start
+    end   <- tbl.gh.promoter$end
+    x$addOpenChromatin(chrom, start, end,
+                       intersect.with.genehancer=FALSE,
+                       promoter.only=FALSE)
+    tbl.oc <- x$getOpenChromatin()
+    motifs <- query(MotifDb, c("sapiens"), c("jaspar2018", "hocomocov11-core"))
+    length(motifs)
+    x$addAndScoreFimoTFBS(fimo.threshold=1e-4, motifs=motifs)
+    tbl.tms <- x$getTfTable()
+    dim(tbl.tms)  # 165 16
+    length(unique(tbl.tms$tf))  # [1] 44
+    x$addRBP()
+    tbl.rbp <- x$getRbpTable()
+    dim(tbl.rbp)  # 7652  12
+    mtx.rna <- getExpressionMatrix(trenaProject, "brandLabDifferentiationTimeCourse-27171x28")
+
+    x$add.tf.mrna.correlations(mtx.rna, featureName="cor.all")
+    tbl.tms <- x$getTfTable()
+    dim(tbl.tms)
+
+    fivenum(tbl.tms$cor.all)
+    x$add.rbp.mrna.correlations(mtx.rna, featureName="cor.all")
+    tbl.rbp <- x$getRbpTable()
+    dim(tbl.rbp)
+    fivenum(tbl.rbp$cor.all)
+    dim(tbl.rbp)  # 7652   13
+
+    tfs <- unique(subset(tbl.tms, abs(cor.all) > 0.5)$tf)
+    printf("candidate tfs: %d", length(tfs))
+    rbps <- unique(subset(tbl.rbp, celltype=="K562" & abs(cor.all) > 0.5)$gene)
+    printf("candidate rbps in K562 cells: %d", length(rbps))
+    #tbl.trena.tf <- x$build.trena.model(tfs, list(), mtx.rna)
+    #dim(tbl.trena.tf)  # 8 7
+    tbl.trena.both <- x$build.trena.model(tfs, rbps, mtx.rna)
+    linear.models <- list()
+    linear.models[["spearman"]] <- x$build.linear.model(mtx.rna, sort.by.column="spearmanCoeff", candidate.regulator.max=15)
+    linear.models[["pearson"]] <- x$build.linear.model(mtx.rna, sort.by.column="spearmanCoeff", candidate.regulator.max=15)
+    linear.models[["betaLasso"]] <- x$build.linear.model(mtx.rna, sort.by.column="betaLasso", candidate.regulator.max=15)
+    linear.models[["betaRidge"]] <- x$build.linear.model(mtx.rna, sort.by.column="betaRidge", candidate.regulator.max=15)
+    linear.models[["rfScore"]] <- x$build.linear.model(mtx.rna, sort.by.column="rfScore", candidate.regulator.max=15)
+    linear.models[["xgboose"]] <- x$build.linear.model(mtx.rna, sort.by.column="xgboost", candidate.regulator.max=15)
+    printf("--- modeling %s, successful", targetGene)
+
+    } # test.tmsCore
