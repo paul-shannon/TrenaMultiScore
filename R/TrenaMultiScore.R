@@ -325,11 +325,13 @@ setMethod('findMoodsTFBS', 'TrenaMultiScore',
 #------------------------------------------------------------------------------------------------------------------------
 .queryHintFootprintRegionsFromDatabase <- function(database.name, chrom.loc, start.loc, end.loc)
 {
-  suppressWarnings(
-    db.access.test <- try(system("/sbin/ping -c 1 khaleesi", intern=TRUE, ignore.stderr=TRUE)))
-  if(length(db.access.test) == 0)
-     stop("khaleesi database server unavailable")
-
+  if(grepl("hagfish", Sys.info()[["nodename"]])){
+      suppressWarnings(
+          db.access.test <- try(system("/sbin/ping -c 1 khaleesi", intern=TRUE, ignore.stderr=TRUE)))
+      if(length(db.access.test) == 0)
+          stop("khaleesi database server unavailable")
+  }
+  
    db <- dbConnect(PostgreSQL(), user= "trena", password="trena", dbname="brain_hint_16", host="khaleesi")
    query <- sprintf("select * from regions where chrom='%s' and start >= %d and endpos <= %d",
                     chrom.loc, start.loc, end.loc)
