@@ -288,19 +288,56 @@ test_addGeneExpressionCorrelations <- function()
 {
    message(sprintf("--- test_addGeneExpressionCorrelations"))
 
-   tms.hoxb4 <- TrenaMultiScore(tpe, "HOXB4");
-   getGeneHancerRegion(tms.hoxb4)
-   findOpenChromatin(tms.hoxb4)
-   findFimoTFBS(tms.hoxb4, fimo.threshold=1e-5)
-   tbl.fimo <- getMultiScoreTable(tms.hoxb4)
+   tbl.fimo.boxb4 <- get(load("../extdata/tbl.fimo.hoxb4-1e5.RData"))
+   checkEquals(length(sort(unique(tbl.fimo.hoxb4$tf))), 106)
+   
+   tms.hoxb4 <- TrenaMultiScore(tpe, "HOXB4", tbl.fimo=tbl.fimo.hoxb4);
 
    mtx <- getExpressionMatrix(tpe, "brandLabDifferentiationTimeCourse-27171x28")
+
+       #----------------------------------------------------
+       # first, correlate all columns using default pearson
+       #----------------------------------------------------
+
    addGeneExpressionCorrelations(tms.hoxb4, mtx)
+   tbl.tms <- getMultiScoreTable(tms.hoxb4)
+
+   set.seed(17)
+   random.tfs <- sample(sort(unique(tbl.tms$tf)), size=3)
+   random.tfs <- intersect(random.tfs, rownames(mtx))
+   for(this.tf in random.tfs){
+      expected <- cor(mtx["HOXB4", ],
+                      mtx[this.tf,], method="pearson", use="pairwise.complete.obs")
+      actual <- subset(tbl.tms, tf==this.tf)$cor
+      checkTrue(all(actual == actual[1]))  # all should be the same, calculated only once
+        # correlation is rounded to two decimal digits
+      #printf("%s  expected: %f   actual: %f", this.tf, expected, actual[1])
+      checkEqualsNumeric(expected, actual[1], tolerance=0.1)
+      } # for this.tf
+
+       #----------------------------------------------------
+       # now, correlate all columns using spearman
+       #----------------------------------------------------
+
+   addGeneExpressionCorrelations(tms.hoxb4, mtx, method="spearman")
+   tbl.tms <- getMultiScoreTable(tms.hoxb4)
+
+   for(this.tf in random.tfs){
+      expected <- cor(mtx["HOXB4", ],
+                      mtx[this.tf,], method="spearman", use="pairwise.complete.obs")
+      actual <- subset(tbl.tms, tf==this.tf)$cor
+      checkTrue(all(actual == actual[1]))  # all should be the same, calculated only once
+        # correlation is rounded to two decimal digits
+      #printf("%s  expected: %f   actual: %f", this.tf, expected, actual[1])
+      checkEqualsNumeric(expected, actual[1], tolerance=0.1)
+      } # for this.tf
+
 
    timepoints <- c("day0.r1", "day0.r2", "day2.r1", "day2.r2", "day4.r1", "day4.r2")
-   addGeneExpressionCorrelations(tms.hoxb4, mtx, "cor.early", timepoints)
-   tbl <- getMultiScoreTable(tms.hoxb4)
-   checkTrue(all(c("cor", "cor.early") %in% colnames(tbl)))
+   addGeneExpressionCorrelations(tms.hoxb4, mtx, "cor.early", timepoints,
+                                 method="spearman")
+   tbl.tms <- getMultiScoreTable(tms.hoxb4)
+   checkTrue(all(c("cor", "cor.early") %in% colnames(tbl.tms)))
 
      # choose 10 tfs at random for checking
    set.seed(17)
@@ -309,12 +346,14 @@ test_addGeneExpressionCorrelations <- function()
    tfs.noExpression <- setdiff(tfs, rownames(mtx))
 
    for(this.tf in tfs.usable){
-      expected <- round(cor(mtx[this.tf, ], mtx["HOXB4",], method="spearman"), digits=2)
+      expected <- cor(mtx[this.tf, ], mtx["HOXB4",], method="spearman")
       actual <- subset(tbl, tf==this.tf)$cor[1]
-      checkEquals(expected, actual)
-      expected.sub <- round(cor(mtx[this.tf, timepoints], mtx["HOXB4", timepoints], method="spearman"), digits=2)
-      actual <- subset(tbl, tf==this.tf)$cor.early[1]
-      checkEquals(expected.sub, actual)
+      checkEqualsNumeric(expected, actual, tol=0.1)
+      expected.sub <- cor(mtx[this.tf, timepoints],
+                         mtx["HOXB4", timepoints],
+                         method="spearman")
+      actual <- subset(tbl.tms, tf==this.tf)$cor.early[1]
+      checkEqualsNumeric(expected.sub, actual, tol=0.1)
       }
 
    checkTrue(all(is.na(subset(tbl, tf %in% tfs.noExpression)$cor)))

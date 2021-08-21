@@ -55,7 +55,9 @@ setGeneric('getMultiScoreTable', signature='obj', function(obj) standardGeneric(
 setGeneric('getTargetGeneInfo', signature='obj', function(obj) standardGeneric('getTargetGeneInfo'))
 setGeneric('addDistanceToTSS', signature='obj', function(obj) standardGeneric('addDistanceToTSS'))
 setGeneric('scoreMotifHitsForGeneHancer', signature='obj', function(obj) standardGeneric('scoreMotifHitsForGeneHancer'))
-setGeneric('addGeneExpressionCorrelations', signature='obj', function(obj, mtx, featureName="cor", colnames=list()) standardGeneric('addGeneExpressionCorrelations'))
+setGeneric('addGeneExpressionCorrelations', signature='obj',
+           function(obj, mtx, featureName="cor", colnames=list(),
+                    method="pearson") standardGeneric('addGeneExpressionCorrelations'))
 setGeneric('addGenicAnnotations', signature='obj', function(obj) standardGeneric('addGenicAnnotations'))
 setGeneric('addChIP', signature='obj', function(obj) standardGeneric('addChIP'))
 setGeneric('addRnaBindingProteins', signature='obj', function(obj) standardGeneric('addRnaBindingProteins'))
@@ -579,13 +581,16 @@ setMethod('scoreMotifHitsForGeneHancer', 'TrenaMultiScore',
 #' @param mtx a numerical matrix, genes are rownames, samples are colnames
 #' @param featureName a character string, default "cor", data.frame column where results are stored
 #' @param colnames list of character strings, limits scope of correlation calcuation. default empty list: use all columns
+#' @param method a character string, either "spearman" or "pearson"
 #' @return None
 #'
 #' @export
 #'
 setMethod('addGeneExpressionCorrelations', 'TrenaMultiScore',
 
-    function(obj, mtx, featureName="cor", colnames=list()){
+    function(obj, mtx, featureName="cor", colnames=list(), method="pearson"){
+
+      stopifnot(method %in% c("spearman", "pearson"))
 
       if(!obj@state$quiet){
          printf("TMS::addGeneExpressionCorrelations, '%s'", featureName)
@@ -602,7 +607,7 @@ setMethod('addGeneExpressionCorrelations', 'TrenaMultiScore',
 
       f <- function(tf){
          if(tf %in% rownames(mtx))
-           return(cor(mtx[obj@targetGene,], mtx[tf,], method="pearson", use="pairwise.complete.obs"))
+           return(cor(mtx[obj@targetGene,], mtx[tf,], method=method, use="pairwise.complete.obs"))
          else return(NA)
          }
 
@@ -611,9 +616,21 @@ setMethod('addGeneExpressionCorrelations', 'TrenaMultiScore',
          }
 
       suppressWarnings({
-          cor <- unlist(lapply(tbl.fimo$tf, f))
+          tfs <- sort(unique(tbl.fimo$tf))
+          if(!obj@state$quiet)
+             printf("starting creation of cor.map for %d tfs", length(tfs))
+          cor.map <- unlist(lapply(tfs, f))
+          if(!obj@state$quiet)
+             printf("created cor.map for %d tfs", length(tfs))
+          names(cor.map) <- tfs
+          if(!obj@state$quiet)
+             printf("starting use of cor.map for %d tfs", length(tfs))
+          cor <- unlist(lapply(tbl.fimo$tf, function(tf) cor.map[[tf]]))
+          if(!obj@state$quiet)
+             printf("used cor.map for %d tfs", length(tfs))
           })
 
+     
       cor <- round(cor, digits=2)
       tbl.fimo[, featureName] <- cor
       obj@state$fimo <- tbl.fimo
