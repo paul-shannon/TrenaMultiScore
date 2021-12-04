@@ -25,7 +25,7 @@ TMS = R6Class("TMS",
     #--------------------------------------------------------------------------------
     public = list(
 
-        initialize = function(trenaProjec, targetGene, tbl.fimo=data.frame(), tbl.oc=data.frame(), quiet=TRUE){
+        initialize = function(trenaProject, targetGene, tbl.fimo=data.frame(), tbl.oc=data.frame(), quiet=TRUE){
            suppressWarnings(db.access.test <-
                                 try(system("/sbin/ping -c 1 khaleesi", intern=TRUE, ignore.stderr=TRUE)))
            if(length(db.access.test) == 0)
@@ -35,6 +35,7 @@ TMS = R6Class("TMS",
            private$tp <- trenaProject
            private$tms <- TrenaMultiScore(private$tp, targetGene, tbl.fimo, tbl.oc, quiet)
            private$tbls.lm <- list()
+           private$tbl.rbp <- data.frame()
            private$lm.adjustedRsquareds <- list()
            },
         addGeneHancer = function(){
@@ -142,35 +143,33 @@ TMS = R6Class("TMS",
            private$tbl.rbp[, featureName] <- cor
            },
 
-	 build.trena.model = function(tfs, rbps, mtx, order.by.column="spearmanCoeff", decreasing.order=TRUE){
-           candidates <- intersect(c(tfs, rbps), rownames(mtx))
-           suppressWarnings({
-              solver <- EnsembleSolver(mtx,
-                            targetGene=private$targetGene,
-                            candidateRegulators=candidates,
-                            geneCutoff=1.0,
-                            solverNames=c("lasso", "Ridge", "Spearman", "Pearson", "RandomForest", "xgboost"))
-              tbl.out <- trena::run(solver)
-              })
-           new.order <- order(tbl.out[, order.by.column], decreasing=decreasing.order)
-	   tbl.out <- tbl.out[new.order,]
-           class <- rep("tf", nrow(tbl.out))
-           if(nrow(private$tbl.rbp) > 0){
-               rbps.in.model <- intersect(tbl.out$gene, private$tbl.rbp$gene)
-               indices <- match(rbps.in.model, tbl.out$gene)
-               class[indices] <- "rbp"
-           }
-           tbl.out$class <- class
-           rownames(tbl.out) <- NULL
-	   private$tbl.trena <- tbl.out
-           tbl.out
-	   },
+	 build.trena.model = function(tfs, mtx, order.by.column="spearmanCoeff", decreasing.order=TRUE){
+             candidates <- intersect(tfs, rownames(mtx))
+             solvers=c("lasso", "Ridge", "Spearman", "Pearson", "RandomForest", "xgboost")
+             #solvers=c("Spearman", "Pearson", "xgboost")
+
+             suppressWarnings({
+                solver <- EnsembleSolver(mtx,
+                              targetGene=private$targetGene,
+                              candidateRegulators=candidates,
+                              geneCutoff=1.0,
+                              solverNames=solvers)
+                tbl.out <- trena::run(solver)
+                })
+             new.order <- order(tbl.out[, order.by.column], decreasing=decreasing.order)
+             tbl.out <- tbl.out[new.order,]
+             class <- rep("tf", nrow(tbl.out))
+             tbl.out$class <- class
+             rownames(tbl.out) <- NULL
+             private$tbl.trena <- tbl.out
+             tbl.out
+             },
 
         get.trena.model = function(){
            private$tbl.trena
            },
 
-         build.linear.model = function(mtx, sort.by.column="rfScore", candidate.regulator.max=20){
+        build.linear.model = function(mtx, sort.by.column="rfScore", candidate.regulator.max=20){
            trena.order <- order(private$tbl.trena[,sort.by.column], decreasing=TRUE)
            private$tbl.trena <- private$tbl.trena[trena.order,]
            top.tfs <- private$tbl.trena$gene

@@ -21,7 +21,7 @@ runTests <- function()
    test_getTargetGeneInfo()
    test_getGeneHancerRegion()
    test_findOpenChromatin()
-   test_findFimoTFBS()
+   # test_findFimoTFBS()    the now standard approach is to run BigFimo separately, beforehand
    # test_findMoodsTFBS()   FIMO is adequate, moods' contribution uncertain
    test_scoreMotifHitsForConservation()
    test_addDistanceToTSS()
@@ -51,11 +51,11 @@ test_getGeneHancerRegion <- function()
 
    tbl.gata2 <- getGeneHancerRegion(tmse)
    checkTrue(is.data.frame(tbl.gata2))
-   checkEquals(as.list(tbl.gata2), list(chrom="chr3", start=128073944, end=128621958, width=548015))
+   checkEquals(as.list(tbl.gata2), list(chrom="chr3", start=128073944, end=128683249, width=609306))
 
    tbl.trem2 <- getGeneHancerRegion(tmsa)
    checkTrue(is.data.frame(tbl.trem2))
-   checkEquals(as.list(tbl.trem2), list(chrom="chr6", start=41131001, end=41296400, width=165400))
+   checkEquals(as.list(tbl.trem2), list(chrom="chr6", start=41110400, end=41296400, width=186001))
 
 } # test_getGeneHancerRegion
 #------------------------------------------------------------------------------------------------------------------------
@@ -112,9 +112,9 @@ test_findOpenChromatin <- function()
 
 } # test_findOpenChromatin
 #------------------------------------------------------------------------------------------------------------------------
-test_findFimoTFBS <- function()
+slow_test_findFimoTFBS <- function()
 {
-   message(sprintf("--- test_findFimoTFBS"))
+   message(sprintf("--- slow_test_findFimoTFBS"))
 
    findOpenChromatin(tmse, "chr3", start=128483204, end=128483276)
    getOpenChromatin(tmse)
@@ -131,9 +131,9 @@ test_findFimoTFBS <- function()
    checkTrue(nrow(tbl.fimo) > 30)
    checkTrue(all(c("SP2", "ZNF263", "CEBPB", "SP1") %in% tbl.fimo$tf)) # and many others
 
-} # test_findFimoTFBS
+} # slow_test_findFimoTFBS
 #------------------------------------------------------------------------------------------------------------------------
-test_findMoodsTFBS <- function()
+disabled_test_findMoodsTFBS <- function()
 {
    message(sprintf("--- test_findMoodsTFBS"))
 
@@ -158,7 +158,7 @@ test_findMoodsTFBS <- function()
 
    checkEquals(nrow(tbl.moods.6), 0)
 
-} # test_findMoodsTFBS
+} # disabled_test_findMoodsTFBS
 #------------------------------------------------------------------------------------------------------------------------
 test_scoreMotifHitsForConservation <- function()
 {
@@ -251,16 +251,17 @@ test_addGenicAnnotations <- function()
 
    findOpenChromatin(tmse, "chr3", start=128481000, end=128489000)
    getOpenChromatin(tmse)
-   findFimoTFBS(tmse, fimo.threshold=1e-3)
+   findFimoTFBS(tmse, fimo.threshold=1e-5)
    addDistanceToTSS(tmse)
 
    scoreMotifHitsForConservation(tmse)
    addGenicAnnotations(tmse)
 
-   tbl.fimo <- getMultiScoreTable(tmse)
-   checkEquals(ncol(tbl.fimo), 14)
-   checkTrue(all(c("annot.type", "annot.symbol") %in% colnames(tbl.fimo)))
-   checkTrue(nrow(tbl.fimo) > 300)
+   tbl.tms <- getMultiScoreTable(tmse)
+   dim(tbl.tms)
+   checkEquals(ncol(tbl.tms), 14)
+   checkTrue(all(c("annot.type", "annot.symbol") %in% colnames(tbl.tms)))
+   checkTrue(nrow(tbl.tms) >= 5)
 
 } # test_addGenicAnnotations
 #------------------------------------------------------------------------------------------------------------------------
@@ -273,14 +274,14 @@ test_addChIP <- function()
    checkEquals(nrow(tbl.oc), 8)
 
    findFimoTFBS(tmse, fimo.threshold=1e-5)
-   tbl.fimo <- getMultiScoreTable(tmse)
-   checkEquals(ncol(tbl.fimo), 9)
-   checkTrue(nrow(tbl.fimo) >= 5)
+   tbl.tms <- getMultiScoreTable(tmse)
+   checkEquals(ncol(tbl.tms), 9)
+   checkTrue(nrow(tbl.tms) >= 5)
    addChIP(tmse)
-   tbl.fimo <- getMultiScoreTable(tmse)
-   checkEquals(ncol(tbl.fimo), 10)
-   checkTrue(nrow(tbl.fimo) >= 5)
-   checkTrue(nrow(subset(tbl.fimo, chip)) >= 3)
+   tbl.tms <- getMultiScoreTable(tmse)
+   checkEquals(ncol(tbl.tms), 10)
+   checkTrue(nrow(tbl.tms) >= 5)
+   checkTrue(nrow(subset(tbl.tms, chip)) >= 3)
 
 } # test_addChIP
 #------------------------------------------------------------------------------------------------------------------------
@@ -290,7 +291,7 @@ test_addGeneExpressionCorrelations <- function()
 
    tbl.fimo.boxb4 <- get(load("../extdata/tbl.fimo.hoxb4-1e5.RData"))
    checkEquals(length(sort(unique(tbl.fimo.hoxb4$tf))), 106)
-   
+
    tms.hoxb4 <- TrenaMultiScore(tpe, "HOXB4", tbl.fimo=tbl.fimo.hoxb4);
 
    mtx <- getExpressionMatrix(tpe, "brandLabDifferentiationTimeCourse-27171x28")
@@ -334,20 +335,19 @@ test_addGeneExpressionCorrelations <- function()
 
 
    timepoints <- c("day0.r1", "day0.r2", "day2.r1", "day2.r2", "day4.r1", "day4.r2")
-   addGeneExpressionCorrelations(tms.hoxb4, mtx, "cor.early", timepoints,
-                                 method="spearman")
+   addGeneExpressionCorrelations(tms.hoxb4, mtx, "cor.early", timepoints, method="spearman")
    tbl.tms <- getMultiScoreTable(tms.hoxb4)
    checkTrue(all(c("cor", "cor.early") %in% colnames(tbl.tms)))
 
      # choose 10 tfs at random for checking
    set.seed(17)
-   tfs <- sample(unique(tbl$tf), 10)
+   tfs <- sample(unique(tbl.tms$tf), 10)
    tfs.usable <- intersect(tfs, rownames(mtx))
    tfs.noExpression <- setdiff(tfs, rownames(mtx))
 
    for(this.tf in tfs.usable){
       expected <- cor(mtx[this.tf, ], mtx["HOXB4",], method="spearman")
-      actual <- subset(tbl, tf==this.tf)$cor[1]
+      actual <- subset(tbl.tms, tf==this.tf)$cor[1]
       checkEqualsNumeric(expected, actual, tol=0.1)
       expected.sub <- cor(mtx[this.tf, timepoints],
                          mtx["HOXB4", timepoints],
@@ -356,8 +356,8 @@ test_addGeneExpressionCorrelations <- function()
       checkEqualsNumeric(expected.sub, actual, tol=0.1)
       }
 
-   checkTrue(all(is.na(subset(tbl, tf %in% tfs.noExpression)$cor)))
-   checkTrue(all(is.na(subset(tbl, tf %in% tfs.noExpression)$cor.early)))
+   checkTrue(all(is.na(subset(tbl.tms, tf %in% tfs.noExpression)$cor)))
+   checkTrue(all(is.na(subset(tbl.tms, tf %in% tfs.noExpression)$cor.early)))
 
 } # test_addGeneExpressionCorrelations
 #------------------------------------------------------------------------------------------------------------------------
@@ -377,9 +377,9 @@ test_addRnaBindingProteins <- function()
 
 } # test_addRnaBindingProteins
 #------------------------------------------------------------------------------------------------------------------------
-test_erythropoeisis.hoxb4 <- function()
+slow_test_erythropoeisis.hoxb4 <- function()
 {
-   message(sprintf("--- test_erythropoeisis.hoxb4"))
+   message(sprintf("--- slow_test_erythropoeisis.hoxb4"))
 
    tms.hoxb4 <- TrenaMultiScore(tpe, "HOXB4");
    getGeneHancerRegion(tms.hoxb4)
@@ -399,13 +399,13 @@ test_erythropoeisis.hoxb4 <- function()
       subset(tbl, p.value < 0.00001 & phast100 > 0.8 & cor > 0.8 & gh > 0)
    checkTrue(all(c("MYC", "WT1") %in% tbl.sub.pos$tf))
 
-} # test_erythropoeisis.hoxb4
+} # slow_test_erythropoeisis.hoxb4
 #------------------------------------------------------------------------------------------------------------------------
 # both haney and krumsiek report that GATA1 regulates TAL1 (aka SCL)
 # can we see that?  brandLabDifferentiationTimeCourse-27171x28 shows 0.75 correlation
-test_erythropoeisis.tal1 <- function()
+slow_test_erythropoeisis.tal1 <- function()
 {
-   message(sprintf("--- test_erythropoeisis.tal1"))
+   message(sprintf("--- slow_test_erythropoeisis.tal1"))
 
    tms.tal1 <- TrenaMultiScore(tpe, "TAL1");
    getGeneHancerRegion(tms.tal1)   # 190kb
@@ -474,11 +474,11 @@ test_erythropoeisis.tal1 <- function()
                    )
 
 
-} # test_erythropoeisis.tal1
+} # slow_test_erythropoeisis.tal1
 #------------------------------------------------------------------------------------------------------------------------
-test_erythropoeisis.gata2 <- function()
+slow_test_erythropoeisis.gata2 <- function()
 {
-   message(sprintf("--- test_erythropoeisis.gata2"))
+   message(sprintf("--- slow_test_erythropoeisis.gata2"))
 
    tms.gata2 <- TrenaMultiScore(tpe, "GATA2");
    region <- getGeneHancerRegion(tms.gata2)
@@ -546,12 +546,12 @@ test_erythropoeisis.gata2 <- function()
                    )
 
 
-} # test_erythropoeisis.gata2
+} # slow_test_erythropoeisis.gata2
 #------------------------------------------------------------------------------------------------------------------------
 # takes a long time to run with fimo.threshold of 1e-3.  skip unless you are patient.
-test_AD.trem2 <- function()
+slow_test_AD.trem2 <- function()
 {
-   message(sprintf("--- test_AD.trems"))
+   message(sprintf("--- slow_test_AD.trems"))
 
    tms.trem2 <- TrenaMultiScore(tpad, "TREM2");
    getGeneHancerRegion(tms.trem2)
@@ -643,11 +643,11 @@ test_AD.trem2 <- function()
     # CREB1    5    15 0.32
 
 
-} # test_AD.trem2
+} # slow_test_AD.trem2
 #------------------------------------------------------------------------------------------------------------------------
-test_AD.mef2c <- function()
+slow_test_AD.mef2c <- function()
 {
-   message(sprintf("--- test_AD.trems"))
+   message(sprintf("--- slow_test_AD.trems"))
 
    tms.mef2c <- TrenaMultiScore(tpad, "MEF2C");
    getGeneHancerRegion(tms.mef2c)
@@ -745,7 +745,7 @@ test_AD.mef2c <- function()
 
    save(tbl, file="mef2c.feature.table.RData")
 
-} # test_AD.mef2c
+} # slow_test_AD.mef2c
 #------------------------------------------------------------------------------------------------------------------------
 #       chrom    start      end     tf strand    score  p.value matched_sequence  chip phast7 phast30 phast100     gh                    annot.type        annot.symbol    tss  cor                            motif_id motifScore
 # 24798  chr5 88667670 88667684 ZBTB33      - 10.53930 5.99e-05  CTCCCGCGGTCTCGA FALSE   1.00    1.00     1.00   7.39             introns,promoters    LINC00461,MIR9-2 236587 0.54 Hsapiens-jaspar2018-ZBTB33-MA0527.1       4.22

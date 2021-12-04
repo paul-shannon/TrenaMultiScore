@@ -333,7 +333,7 @@ setMethod('findMoodsTFBS', 'TrenaMultiScore',
       if(length(db.access.test) == 0)
           stop("khaleesi database server unavailable")
   }
-  
+
    db <- dbConnect(PostgreSQL(), user= "trena", password="trena", dbname="brain_hint_16", host="khaleesi")
    query <- sprintf("select * from regions where chrom='%s' and start >= %d and endpos <= %d",
                     chrom.loc, start.loc, end.loc)
@@ -630,7 +630,7 @@ setMethod('addGeneExpressionCorrelations', 'TrenaMultiScore',
              printf("used cor.map for %d tfs", length(tfs))
           })
 
-     
+
       cor <- round(cor, digits=2)
       tbl.fimo[, featureName] <- cor
       obj@state$fimo <- tbl.fimo
