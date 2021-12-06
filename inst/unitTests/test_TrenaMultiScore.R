@@ -30,6 +30,8 @@ runTests <- function()
    test_addGeneExpressionCorrelations()
    test_addChIP()
    test_addRnaBindingProteins()
+   test_add.eqtls.atTagSNP()
+   test_add.eqtls.big.NDUFS2()
 
 } # runTests
 #------------------------------------------------------------------------------------------------------------------------
@@ -793,6 +795,233 @@ test_mef2cModel <- function()
    displayTrack(igv, track)
 
 } # test_mef2cModel
+#------------------------------------------------------------------------------------------------------------------------
+test_add.eqtls.atTagSNP <- function()
+{
+   message(sprintf("--- test_add.eqtls.atTagSNP"))
+
+   targetGene <- "NDUFS2"
+   tpad <- TrenaProjectAD()
+
+
+
+   tbl.fimo <- get(load("../extdata/tbl.fimo.1e3.512bp.ndufs2.RData"))
+
+      #--------------------------------------------------------------
+      # a very simple case to start, related to AD, just the tag.snp
+      # 33 base pair span, continaing 32 motifs hits
+      #--------------------------------------------------------------
+
+   tbl.fimo.small <- subset(tbl.fimo, start > 161185590 & end < 161185625)
+   dim(tbl.fimo.small)
+   fimo.min <- min(tbl.fimo.small$start)
+   fimo.max <- max(tbl.fimo.small$end)
+   fimo.chrom <- tbl.fimo.small$chrom[1]
+   printf("--- fimo span: %d bases", (fimo.max - fimo.min))
+
+   tbl.oc <- get(load("~/github/TrenaProjectAD/inst/extdata/genomicRegions/boca-hg38-consensus-ATAC.RData"))
+   tbl.eqtl <- get(load("../extdata/tbl.eqtl.ndufs2.small.RData"))
+
+   tms <- TrenaMultiScore(tpad, targetGene, tbl.fimo.small, tbl.oc, quiet=FALSE)
+
+      #--------------------------------------------------------------------------------
+      # filter the eqtls, producing 10 reports of the tag.snp, different pvalue & beta
+      #--------------------------------------------------------------------------------
+
+   tbl.eqtl.01 <- subset(tbl.eqtl, hg38 >= fimo.min &
+                                   hg38 <= fimo.max &
+                                   gene=="NDUFS2" &
+                                   grepl("Brain", study, ignore.case=TRUE) &
+                                   pvalue < 0.01)
+   dim(tbl.eqtl.01)
+
+   new.order <- order(abs(tbl.eqtl.01$beta), decreasing=TRUE)
+   tbl.eqtl.01 <- tbl.eqtl.01[new.order,]
+   dim(tbl.eqtl.01)  # 10 9
+
+      #----------------------------------------------------
+      # further filtering will be done in this method call
+      #----------------------------------------------------
+
+   add.eQTLs(tms, tbl.eqtl.01, pval=0.001, abs.beta=0.2, eqtl.title="brain.eqtl")
+
+   tbl.tms <- getMultiScoreTable(tms)
+     # 17 tfbs intersected eQTLs above threshold in 4 studies
+   checkEquals(length(which(tbl.tms$brain.eqtl==4)), 17)
+   checkEquals(length(which(tbl.tms$brain.eqtl==0)), 15)
+   checkEquals(sort(subset(tbl.eqtl.01, pvalue<=0.001 & abs(beta) >= 0.2)$study),
+               c("GTEx_V8.Brain_Caudate_basal_ganglia",
+                 "GTEx_V8.Brain_Cerebellum",
+                 "GTEx_V8.Brain_Hippocampus",
+                 "GTEx_V8.Brain_Spinal_cord_cervical_c-1"))
+
+   as.list(table(tbl.tms$brain.eqtl))
+
+   fimo.regions.with.eqtl <- which(tbl.tms$brain.eqtl > 0)
+   fimo.regions.without.eqtl <- which(tbl.tms$brain == 0)
+   checkTrue(all(is.na(tbl.tms$ctx.rsid[fimo.regions.without.eqtl])))
+   checkEquals(length(fimo.regions.with.eqtl) + length(fimo.regions.without.eqtl), nrow(tbl.tms))
+
+   variants.passing.threshold <- nrow(subset(tbl.eqtl.01, pvalue <= 0.001 & abs(beta) >= 0.2))
+   checkEquals(variants.passing.threshold, 4)
+
+     #--------------------------------------------------------------------------------
+     # find eqtls hits for GTEx_V8.Brain_Cerebellum eQTLS, at the specified thresholds
+     #--------------------------------------------------------------------------------
+
+   tbl.eqtl.02 <- subset(tbl.eqtl, hg38 >= fimo.min &
+                                   hg38 <= fimo.max &
+                                   gene=="NDUFS2" &
+                                   grepl("GTEx_V8.Brain_Cerebellum", study, ignore.case=TRUE))
+   checkEquals(nrow(tbl.eqtl.02), 1)
+
+   add.eQTLs(tms, tbl.eqtl.02, pval=0.001, abs.beta=0.2, eqtl.title="cerebellum.eqtl")
+   tbl.tms <- getMultiScoreTable(tms)
+   checkEquals(length(which(tbl.tms$cerebellum.eqtl==1)), 17)
+   checkEquals(length(which(tbl.tms$cerebellum.eqtl==0)), 15)
+
+
+   if(FALSE){
+      igv <- start.igv("NDUFS2", "hg38")
+      tbl.track <- unique(tbl.sub[, c("chrom", "hg38", "hg38", "rsid")])
+      colnames(tbl.track)[2:3] <- c("start", "end")
+      tbl.track$start <- tbl.track$start - 1
+
+      track <- DataFrameAnnotationTrack("tbl.sub", tbl.track, color="red")
+      displayTrack(igv, track)
+      track <- DataFrameAnnotationTrack("fimo", tbl.fimo, color="darkblue")
+      displayTrack(igv, track)
+      tbl.hit <- subset(tbl.tms, eqtl.gtex.ctx > 0)
+      track <- DataFrameAnnotationTrack("hits", tbl.hit, color="darkGreen")
+      displayTrack(igv, track)
+      }
+
+} # test_add.eqtls.atTagSNP
+#------------------------------------------------------------------------------------------------------------------------
+# two constrasting snps within 50 bp
+#   1) rs34884997  1 161191082  2.07339e-10 NDUFS2   418 -0.403569   GTEx_V8.Brain_Cerebellum
+#   2) rs41270037  1 161191043  7.80822e-02 NDUFS2   350   0.317322   GTEx_V8.Brain_Cerebellar_Hemisphere
+#
+test_add.eqtls.big.NDUFS2 <- function()
+{
+   message(sprintf("--- test_add.eqtls.big.NDUFS2"))
+   targetGene <- "NDUFS2"
+
+   tbl.fimo <- get(load("../extdata/tbl.fimo.1e3.512bp.ndufs2.RData"))
+   tbl.oc <- get(load("~/github/TrenaProjectAD/inst/extdata/genomicRegions/boca-hg38-consensus-ATAC.RData"))
+   tbl.eqtl <- get(load("../extdata/tbl.eqtl.ndufs2.small.RData"))
+   dim(tbl.eqtl)
+   tbl.eqtl.oi <- subset(tbl.eqtl, gene=="NDUFS2" & grepl("GTEx_V8.Brain_C", study))
+   dim(tbl.eqtl.oi) # 138
+   tbl.tagHap <- read.table("~/github/ADvariantExplorer/explore/adamts4-study/haploreg-rs4575098-0.2.tsv",
+                            sep="\t", as.is=TRUE, header=TRUE)
+
+   viz <- function(){  # used for selecting 4997 and 0037, chr1:161,191,018-161,191,117
+      igv <- start.igv("NDUFS2", "hg38")
+      zoomOut(igv)
+      zoomOut(igv)
+      track <- DataFrameAnnotationTrack("rs34884997",
+                                        data.frame(chrom=1, start=161191081, end=161191082, name="rs34884997",
+                                                   stringsAsFactors=FALSE), color="darkblue")
+      displayTrack(igv, track)
+      tbl.track <- tbl.tagHap[, c("chrom", "hg38", "hg38", "rSquared")]
+      colnames(tbl.track)[2:3] <- c("start", "end")
+      tbl.track$start <- tbl.track$start - 1
+      track <- DataFrameQuantitativeTrack("tagHap", tbl.track, autoscale=TRUE, color="darkgreen")
+      displayTrack(igv, track)
+
+      tbl.track <- tbl.eqtl.oi[, c("chrom", "hg38", "hg38", "rsid")]
+      colnames(tbl.track)[2:3] <- c("start", "end")
+      tbl.track$start <- tbl.track$start -1
+      track <- DataFrameAnnotationTrack("eQTL", tbl.track, color="black", displayMode="COLLAPSE")
+      displayTrack(igv, track)
+      length(unique(tbl.fimo$tf)) # 350
+      track <- DataFrameAnnotationTrack("fimo", tbl.fimo, color="red", displayMode="COLLAPSE")
+      displayTrack(igv, track)
+      } # viz
+
+   tpad <- TrenaProjectAD()
+   loc.start <- 161191018
+   loc.end   <- 161191117
+   f <- "~/github/ADvariantExplorer/explore/adamts4-study/ndufs2/tbl.fimo.NDUFS2.RData"
+   file.exists(f)
+   tbl.fimo <- get(load(f))
+   tbl.fimo.small <- subset(tbl.fimo, start >= loc.start & end <= loc.end)
+   dim(tbl.fimo.small) # 293 9
+   save(tbl.fimo.small, file="../extdata/tbl.fimo.1e3.100bp-rs34884997.ndufs2.RData")
+   fimo.min <- min(tbl.fimo.small$start)
+   fimo.max <- max(tbl.fimo.small$end)
+   fimo.chrom <- tbl.fimo.small$chrom[1]
+   printf("--- fimo span: %d bases", (fimo.max - fimo.min))
+
+
+   tms <- TrenaMultiScore(tpad, targetGene, tbl.fimo.small, tbl.oc, quiet=FALSE)
+
+      #--------------------------------------------------------------------------------
+      # filter the eqtls, producing 10 reports of the tag.snp, different pvalue & beta
+      #--------------------------------------------------------------------------------
+
+   tbl.eqtl.01 <- subset(tbl.eqtl, hg38 >= fimo.min &
+                                   hg38 <= fimo.max &
+                                   gene=="NDUFS2" &
+                                   grepl("GTEx_V8.Brain_C", study, ignore.case=TRUE))
+   dim(tbl.eqtl.01)
+
+   new.order <- order(abs(tbl.eqtl.01$pvalue), decreasing=FALSE)
+   tbl.eqtl.01 <- tbl.eqtl.01[new.order,]
+   dim(tbl.eqtl.01)  # 8 9
+
+      #----------------------------------------------------
+      # further filtering will be done in this method call
+      #----------------------------------------------------
+
+   add.eQTLs(tms, tbl.eqtl.01, pval=0.1, abs.beta=0.15, eqtl.title="gtex.brain_c")
+
+   tbl.tms <- getMultiScoreTable(tms)
+   table(tbl.tms$gtex.brain_c) #    0   1   4
+                               #  221  42  30
+      #---------------------------------------------------
+      # we started with two variants, separated by about 38bp
+      #                         hg38         pval                  beta
+      #   1) rs41270037  1 161191043  7.80822e-02 NDUFS2   350 0.317322   GTEx_V8.Brain_Cerebellar_Hemisphere
+      #   2) rs34884997  1 161191082  2.07339e-10 NDUFS2   418 -0.403569   GTEx_V8.Brain_Cerebellum
+      # the first, a weaker eQTL, only appears in one GTEx brain study
+      # the second, much stronger, appears in multiple GTEx brain studies
+      # we see that in the table result above.  let's now check the coordinates of those 42
+      # motifs which intersect the first variant
+
+    tbl.variant.1 <- as.data.frame(reduce(GRanges(subset(tbl.tms, gtex.brain_c==1)[, c("chrom", "start", "end")])))
+    tbl.variant.2 <- as.data.frame(reduce(GRanges(subset(tbl.tms, gtex.brain_c==4)[, c("chrom", "start", "end")])))
+
+    checkTrue(161191043 %in% tbl.variant.1$start:tbl.variant.1$end)
+    checkTrue(161191082 %in% tbl.variant.2$start:tbl.variant.2$end)
+
+    starts.1 <- subset(tbl.tms, gtex.brain_c==1)$start
+    ends.1 <- subset(tbl.tms, gtex.brain_c==1)$end
+
+    tbl.1 <- subset(tbl.tms, gtex.brain_c==1)[, c("start", "end")]
+    checkTrue(all(unlist(lapply(seq_len(nrow(tbl.1)),
+                                function(r) 161191043 %in% tbl.1$start[r]: tbl.1$end[r]))))
+    tbl.2 <- subset(tbl.tms, gtex.brain_c==4)[, c("start", "end")]
+    checkTrue(all(unlist(lapply(seq_len(nrow(tbl.2)),
+                                function(r) 161191082 %in% tbl.2$start[r]: tbl.2$end[r]))))
+
+} # test_add.eqtls.big.NDUFS2
+#----------------------------------------------------------------------------------------------------
+explore.add.eqtls <- function()
+{
+   print(load("add.eqtls.tmp.RData")) # "tbl.fimo"  "tbl.eqtls" "tbl.ov"
+   dim(tbl.fimo)   # 1260 12
+   tbl.eqtls <- subset(tbl.eqtls, gene=="NDUFS2")
+   dim(tbl.eqtls)  # 178 9
+   dim(tbl.ov)     # 88 2
+   length(unique(tbl.ov[,1]))   # 23 eqtls
+   length(unique(tbl.ov[,2]))   # in 38 fimo regions
+
+   tbl.counts.per.fimo.region <- as.data.frame(table(tbl.ov[,2]))
+   tbl.fimo$eqtlCount[tbl.counts.per.fimo.region[,1]] <- tbl.counts.per.fimo.region[,2]
+
+} # explore.add.eqtls
 #------------------------------------------------------------------------------------------------------------------------
 demo.ccl1.tpe <- function()
 {

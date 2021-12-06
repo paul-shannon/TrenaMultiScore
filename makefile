@@ -1,3 +1,6 @@
+default:
+	@echo roxy install build test check all [roxy instll test]
+
 all:  roxy install
 
 roxy:
@@ -12,5 +15,6 @@ check:
 	(cd ..; R CMD check `ls -t TrenaMultiScore) | head -1`)
 
 test:
-	for x in inst/unitTests/test_*.R; do echo $$x; R -f $$x; done
+	(cd inst/unitTests; R -f test_TrenaMultiScore.R)
+
 

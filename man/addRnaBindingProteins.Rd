@@ -2,16 +2,29 @@
 % Please edit documentation in R/TrenaMultiScore.R
 \name{addRnaBindingProteins,TrenaMultiScore-method}
 \alias{addRnaBindingProteins,TrenaMultiScore-method}
+\alias{add.eQTLs,TrenaMultiScore-method}
 \title{query remote khaleesi (ingested POSTAR2) database for rna binding protein binding sites for the target gene}
 \usage{
 \S4method{addRnaBindingProteins}{TrenaMultiScore}(obj)
+
+\S4method{add.eQTLs}{TrenaMultiScore}(obj, tbl.eqtls, pval, abs.beta, eqtl.title)
 }
 \arguments{
 \item{obj}{a TrenaMultiScore object}
+
+\item{tbl.eqtls}{data.frame, with chrom, start, end, and tissue category columns}
+
+\item{pval}{numeric only consider eQTLs with pval at or below this threshold}
+
+\item{abs.beta}{numeric only consider eQTLs with abs(beta) at or above this threshold}
 }
 \value{
 data.frame
+
+nothing
 }
 \description{
 POSTAR2 curated many clip-seq (and related) data sources; we put them in a postgres database, queried here by gene
+
+add eQTL annotations to all appropriate regions
 }

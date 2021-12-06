@@ -63,6 +63,9 @@ setGeneric('addChIP', signature='obj', function(obj) standardGeneric('addChIP'))
 setGeneric('addRnaBindingProteins', signature='obj', function(obj) standardGeneric('addRnaBindingProteins'))
 setGeneric('getRnaBindingProteins', signature='obj', function(obj) standardGeneric('getRnaBindingProteins'))
 setGeneric('scoreMotifHitsForOpenChromatin', signature='obj', function(obj) standardGeneric('scoreMotifHitsForOpenChromatin'))
+
+setGeneric('add.eQTLs', signature='obj', function(obj, tbl.eqtls, pval, abs.beta, eqtl.title)
+    standardGeneric('add.eQTLs'))
 #------------------------------------------------------------------------------------------------------------------------
 #' Define an object of class TrenaMultiScore
 #'
@@ -771,6 +774,45 @@ setMethod('getRnaBindingProteins', 'TrenaMultiScore',
     function(obj){
       invisible(obj@state$tbl.rbp)
       }) # getRnaBindingProteins
+
+#------------------------------------------------------------------------------------------------------------------------
+#' @description
+#' add eQTL annotations to all appropriate regions
+#'
+#' @rdname addRnaBindingProteins
+#'
+#' @param obj a TrenaMultiScore object
+#' @param tbl.eqtls data.frame, with chrom, start, end, and tissue category columns
+#' @param pval numeric only consider eQTLs with pval at or below this threshold
+#' @param abs.beta numeric only consider eQTLs with abs(beta) at or above this threshold
+#' @return nothing
+#'
+#' @export
+#'
+setMethod('add.eQTLs', 'TrenaMultiScore',
+
+    function(obj, tbl.eqtls, pval, abs.beta, eqtl.title){
+        tbl.fimo <- obj@state$fimo
+        tbl.eqtls.sub <- subset(tbl.eqtls, gene==obj@targetGene & pvalue <= pval & abs(beta) >= abs.beta)
+        if(!grepl("chr", tbl.eqtls.sub$chrom[1]))
+            tbl.eqtls.sub$chrom <- paste0("chr", tbl.eqtls.sub$chrom)
+        tbl.ov <- as.data.frame(findOverlaps(GRanges(tbl.fimo),
+                                             GRanges(seqnames=tbl.eqtls.sub$chrom, IRanges(tbl.eqtls.sub$hg38))))
+        colnames(tbl.ov) <- c("fimo", "eqtl")
+        if(nrow(tbl.ov) > 0){
+           tbl.info <- as.data.frame(table(tbl.ov$fimo), stringsAsFactors=FALSE)
+           colnames(tbl.info) <- c("fimoIndex", "count")
+           tbl.info$fimoIndex <- as.integer(tbl.info$fimoIndex)
+             #tbl.info$rsid <- tbl.eqtls.sub$rsid[tbl.info$eqtlIndex]
+           eqtlCount <- rep(0, nrow(tbl.fimo))
+           eqtlCount[tbl.info$fimoIndex] <- tbl.info$count
+             #eqtlVariant <- rep(NA, nrow(tbl.fimo))
+             #eqtlVariant[tbl.info$fimoIndex] <- tbl.info$rsid
+           tbl.fimo[, eqtl.title] <- eqtlCount
+             #tbl.fimo[, sprintf("%s.rsid", eqtl.title)] <- eqtlVariant
+           obj@state$fimo <- tbl.fimo
+           } # if some overlaps
+        }) # add.eQTLs
 
 #------------------------------------------------------------------------------------------------------------------------
 
