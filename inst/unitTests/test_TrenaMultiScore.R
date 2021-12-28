@@ -5,6 +5,7 @@ library(RUnit)
 library(factoextra)
 library(ghdb)
 library(RPostgreSQL)
+library(Rtsne)
 #------------------------------------------------------------------------------------------------------------------------
 if(!exists("tmse")) {
    message(sprintf("--- creating instance of TrenaMultiScore"))

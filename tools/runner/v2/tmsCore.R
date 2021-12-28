@@ -114,14 +114,18 @@ TMS = R6Class("TMS",
            getMultiScoreTable(private$tms)
            },
 
-        addRBP = function(){
-           db <- dbConnect(PostgreSQL(), user= "trena", password="trena", dbname="genereg2021", host="khaleesi")
-             #  AND celltype='K562'
-           query <- sprintf("select * from rbp where target='%s'", private$targetGene)
-           tbl.rbp <- dbGetQuery(db, query)
-           colnames(tbl.rbp)[grep("endpos", colnames(tbl.rbp))] <- "end"
-           private$tbl.rbp <- tbl.rbp
-           dbDisconnect(db)
+        addRBP = function(tbl.specified.rbps=NA){
+           if(all(is.na(tbl.specified.rbps))){
+              db <- dbConnect(PostgreSQL(), user= "trena", password="trena", dbname="genereg2021", host="khaleesi")
+                #  AND celltype='K562'
+              query <- sprintf("select * from rbp where target='%s'", private$targetGene)
+              tbl.rbp <- dbGetQuery(db, query)
+              colnames(tbl.rbp)[grep("endpos", colnames(tbl.rbp))] <- "end"
+              private$tbl.rbp <- tbl.rbp
+              dbDisconnect(db)
+              return()
+              }
+           private$tbl.rbp <- tbl.specified.rbps
            },
 
         getRbpTable = function(){
@@ -143,14 +147,16 @@ TMS = R6Class("TMS",
            private$tbl.rbp[, featureName] <- cor
            },
 
-	 build.trena.model = function(tfs, mtx, order.by.column="spearmanCoeff", decreasing.order=TRUE){
+        build.trena.model = function(tfs, mtx, alternateTarget=NA,
+                                     order.by.column="spearmanCoeff", decreasing.order=TRUE){
              candidates <- intersect(tfs, rownames(mtx))
              solvers=c("lasso", "Ridge", "Spearman", "Pearson", "RandomForest", "xgboost")
-             #solvers=c("Spearman", "Pearson", "xgboost")
-
+             trueTarget <- private$targetGene
+             if(!is.na(alternateTarget))
+                 trueTarget <- alternateTarget
              suppressWarnings({
                 solver <- EnsembleSolver(mtx,
-                              targetGene=private$targetGene,
+                              targetGene=trueTarget,
                               candidateRegulators=candidates,
                               geneCutoff=1.0,
                               solverNames=solvers)
@@ -159,6 +165,8 @@ TMS = R6Class("TMS",
              new.order <- order(tbl.out[, order.by.column], decreasing=decreasing.order)
              tbl.out <- tbl.out[new.order,]
              class <- rep("tf", nrow(tbl.out))
+             rbp.indices <- which(tbl.out$gene %in% private$tbl.rbp$gene)
+             class[rbp.indices] <- "rbp"
              tbl.out$class <- class
              rownames(tbl.out) <- NULL
              private$tbl.trena <- tbl.out
