@@ -26,10 +26,12 @@ TMS = R6Class("TMS",
     public = list(
 
         initialize = function(trenaProject, targetGene, tbl.fimo=data.frame(), tbl.oc=data.frame(), quiet=TRUE){
-           suppressWarnings(db.access.test <-
-                                try(system("/sbin/ping -c 1 khaleesi", intern=TRUE, ignore.stderr=TRUE)))
-           if(length(db.access.test) == 0)
-              stop("khaleesi database server unavailable")
+           if(Sys.info[["sysname"]] == "Darwin"){
+              suppressWarnings(db.access.test <-
+                                 try(system("/sbin/ping -c 1 khaleesi", intern=TRUE, ignore.stderr=TRUE)))
+             if(length(db.access.test) == 0)
+                 stop("khaleesi database server unavailable")
+             }
            printf("initializing TMS('%s')", targetGene)
            private$targetGene <- targetGene
            private$tp <- trenaProject
