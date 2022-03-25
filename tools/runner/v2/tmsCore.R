@@ -26,7 +26,7 @@ TMS = R6Class("TMS",
     public = list(
 
         initialize = function(trenaProject, targetGene, tbl.fimo=data.frame(), tbl.oc=data.frame(), quiet=TRUE){
-           if(Sys.info[["sysname"]] == "Darwin"){
+           if(Sys.info()[["sysname"]] == "Darwin"){
               suppressWarnings(db.access.test <-
                                  try(system("/sbin/ping -c 1 khaleesi", intern=TRUE, ignore.stderr=TRUE)))
              if(length(db.access.test) == 0)
