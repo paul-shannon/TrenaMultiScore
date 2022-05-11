@@ -386,16 +386,20 @@ setMethod('scoreMotifHitsForOpenChromatin', 'TrenaMultiScore',
 
       tbl.fimo <- obj@state$fimo
       tbl.oc <- obj@state$openChromatin
-      stopifnot(nrow(tbl.oc) > 0)
-      gr.fimo <- GRanges(seqnames=tbl.fimo$chrom, IRanges(tbl.fimo$start, tbl.fimo$end))
-      gr.oc   <- GRanges(seqnames=tbl.oc$chrom, IRanges(tbl.oc$start, tbl.oc$end))
-      tbl.ov  <- as.data.frame(findOverlaps(gr.oc, gr.fimo, type="any"))
-      openChromatin <- rep(FALSE, nrow(tbl.fimo))
-      if(nrow(tbl.ov) > 0){
-         hits <- unique(tbl.ov$subjectHits)
-         openChromatin[hits] <- TRUE
+      if(nrow(tbl.oc) == 0){
+         tbl.fimo$oc <- FALSE
          }
-      tbl.fimo$oc <- openChromatin
+      if(nrow(tbl.oc) > 0){
+         gr.fimo <- GRanges(seqnames=tbl.fimo$chrom, IRanges(tbl.fimo$start, tbl.fimo$end))
+         gr.oc   <- GRanges(seqnames=tbl.oc$chrom, IRanges(tbl.oc$start, tbl.oc$end))
+         tbl.ov  <- as.data.frame(findOverlaps(gr.oc, gr.fimo, type="any"))
+         openChromatin <- rep(FALSE, nrow(tbl.fimo))
+         if(nrow(tbl.ov) > 0){
+            hits <- unique(tbl.ov$subjectHits)
+            openChromatin[hits] <- TRUE
+            }
+         tbl.fimo$oc <- openChromatin
+         }
       rownames(tbl.fimo) <- NULL
       obj@state$fimo <- tbl.fimo
       }) # scoreMotifHitsForOpenChromatin
@@ -793,6 +797,7 @@ setMethod('add.eQTLs', 'TrenaMultiScore',
 
     function(obj, tbl.eqtls, pval, abs.beta, eqtl.title){
         tbl.fimo <- obj@state$fimo
+        required.cols <- c("gene", "pvalue", "beta", "chrom", "hg38", "rsid")
         tbl.eqtls.sub <- subset(tbl.eqtls, gene==obj@targetGene & pvalue <= pval & abs(beta) >= abs.beta)
         if(!grepl("chr", tbl.eqtls.sub$chrom[1]))
             tbl.eqtls.sub$chrom <- paste0("chr", tbl.eqtls.sub$chrom)
