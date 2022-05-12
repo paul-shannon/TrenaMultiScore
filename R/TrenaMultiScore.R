@@ -798,6 +798,7 @@ setMethod('add.eQTLs', 'TrenaMultiScore',
     function(obj, tbl.eqtls, pval, abs.beta, eqtl.title){
         tbl.fimo <- obj@state$fimo
         required.cols <- c("gene", "pvalue", "beta", "chrom", "hg38", "rsid")
+        stopifnot(all(required.cols %in% colnames(tbl.eqtls)))
         tbl.eqtls.sub <- subset(tbl.eqtls, gene==obj@targetGene & pvalue <= pval & abs(beta) >= abs.beta)
         if(!grepl("chr", tbl.eqtls.sub$chrom[1]))
             tbl.eqtls.sub$chrom <- paste0("chr", tbl.eqtls.sub$chrom)
