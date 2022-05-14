@@ -106,7 +106,7 @@ TMS = R6Class("TMS",
            scoreMotifHitsForConservation(private$tms)
            scoreMotifHitsForGeneHancer(private$tms)
            scoreMotifHitsForOpenChromatin(private$tms)
-           addGenicAnnotations(private$tms)
+           # addGenicAnnotations(private$tms)
            addDistanceToTSS(private$tms)
            },
         addChIP = function(){
