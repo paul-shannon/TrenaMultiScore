@@ -5,7 +5,7 @@ library(RUnit)
 library(factoextra)
 library(ghdb)
 library(RPostgreSQL)
-library(Rtsne)
+# library(Rtsne)
 #------------------------------------------------------------------------------------------------------------------------
 if(!exists("tmse")) {
    message(sprintf("--- creating instance of TrenaMultiScore"))
@@ -59,6 +59,10 @@ test_getGeneHancerRegion <- function()
    tbl.trem2 <- getGeneHancerRegion(tmsa)
    checkTrue(is.data.frame(tbl.trem2))
    checkEquals(as.list(tbl.trem2), list(chrom="chr6", start=41110400, end=41296400, width=186001))
+
+   tmse.fail <- TrenaMultiScore(tpe, "C2orf40");
+   tbl.fail <- getGeneHancerRegion(tmse.fail)
+   
 
 } # test_getGeneHancerRegion
 #------------------------------------------------------------------------------------------------------------------------
