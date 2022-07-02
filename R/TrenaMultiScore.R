@@ -133,8 +133,9 @@ setMethod('getGeneHancerRegion', 'TrenaMultiScore',
         tbl.gh <- retrieveEnhancersFromDatabase(ghdb, targetGene, tissues="all")
         if(nrow(tbl.gh) == 0){
             return(data.frame())
-            } # failed 
+            } # failed
         obj@state$genehancer <- tbl.gh
+        if(nrow(tbl.gh) == 0) return(data.frame())
         start <- min(tbl.gh$start) - 1000
         end <- max(tbl.gh$end) + 1000
         width <- 1 + end - start

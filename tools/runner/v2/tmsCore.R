@@ -101,8 +101,8 @@ TMS = R6Class("TMS",
                stop(s)
                }
            },
-        scoreFimoTFBS = function(){
-           addChIP(private$tms)
+        scoreFimoTFBS = function(addChIP=FALSE){
+           if(addChIP) addChIP(private$tms)
            scoreMotifHitsForConservation(private$tms)
            scoreMotifHitsForGeneHancer(private$tms)
            scoreMotifHitsForOpenChromatin(private$tms)
