@@ -127,9 +127,12 @@ setMethod('getGeneHancerRegion', 'TrenaMultiScore',
 
      function(obj){
         ghdb <- GeneHancerDB()
-        tbl.gh <- retrieveEnhancersFromDatabase(ghdb, obj@targetGene, tissues="all")
+        targetGene <- obj@targetGene
+        if(targetGene == "C2orf40")  # todo: painful hack due to inconsistent names, soon fixed by GTEx and ROSMAP I hope
+            targetGene <- "ECRG4"
+        tbl.gh <- retrieveEnhancersFromDatabase(ghdb, targetGene, tissues="all")
         if(nrow(tbl.gh) == 0){
-            return(data.frame(chrom=NA_character_, start=0, end=0, width=0, stringsAsFactors=FALSE))
+            return(data.frame())
             } # failed 
         obj@state$genehancer <- tbl.gh
         start <- min(tbl.gh$start) - 1000
