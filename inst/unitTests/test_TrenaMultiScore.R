@@ -62,9 +62,23 @@ test_getGeneHancerRegion <- function()
 
    tmse.fail <- TrenaMultiScore(tpe, "C2orf40");
    tbl.fail <- getGeneHancerRegion(tmse.fail)
-   
+
 
 } # test_getGeneHancerRegion
+#------------------------------------------------------------------------------------------------------------------------
+test_lincRNA <- function()
+{
+   name.1 <- "RP11-332H14.2"
+   name.2 <- "C2orf49-DT"
+   tpad <- TrenaProjectAD()
+   tms <- TrenaMultiScore(tpad, name.2)
+
+   tbl.gh <- getGeneHancerRegion(tms)
+   checkEquals(dim(tbl.gh), c(1, 4))
+   checkEquals(as.list(tbl.gh),
+               list(chrom="chr2", start=104598440, end=106033056,width=1434617))
+
+} # test_lincRNA
 #------------------------------------------------------------------------------------------------------------------------
 test_findOpenChromatin <- function()
 {
@@ -196,7 +210,7 @@ test_getTargetGeneInfo <- function()
 
    x <- getTargetGeneInfo(tmse)
    checkTrue(all(c("tss", "strand", "chrom", "start", "end") %in% names(x)))
-   checkEquals(x$tss, 128493185)
+   checkEquals(x$tss,  48580111)
    checkEquals(x$strand, -1)
 
 } # test_getTargetGeneInfo
@@ -296,7 +310,9 @@ test_addGeneExpressionCorrelations <- function()
 {
    message(sprintf("--- test_addGeneExpressionCorrelations"))
 
-   tbl.fimo.boxb4 <- get(load("../extdata/tbl.fimo.hoxb4-1e5.RData"))
+   f <- system.file(package="TrenaMultiScore", "extdata", "tbl.fimo.hoxb4-1e5.RData")
+   checkTrue(file.exists(f))
+   tbl.fimo.boxb4 <- get(load(f))
    checkEquals(length(sort(unique(tbl.fimo.hoxb4$tf))), 106)
 
    tms.hoxb4 <- TrenaMultiScore(tpe, "HOXB4", tbl.fimo=tbl.fimo.hoxb4);
@@ -400,11 +416,11 @@ slow_test_erythropoeisis.hoxb4 <- function()
    addGeneExpressionCorrelations(tms.hoxb4, mtx)
    addGenicAnnotations(tms.hoxb4)
    tbl <- getMultiScoreTable(tms.hoxb4)
-   tbl.sub.neg <-  subset(tbl, p.value < 0.0001 & phast100 > 0.8 & cor < -0.4 & gh > 0)
-   checkTrue(all(c("GLI3", "TBX15", "RXRG") %in% tbl.sub.neg$tf))
+   tbl.sub.neg <-  subset(tbl, fimo_pvalue < 0.0001 & phast100 > 0.8 & cor < -0.4 & gh > 0)
+   checkTrue(all(c("RXRG", "MXI1", "VSX2","IRF1") %in% tbl.sub.neg$tf))
    tbl.sub.pos <-
-      subset(tbl, p.value < 0.00001 & phast100 > 0.8 & cor > 0.8 & gh > 0)
-   checkTrue(all(c("MYC", "WT1") %in% tbl.sub.pos$tf))
+      subset(tbl, fimo_pvalue < 0.00001 & phast100 > 0.8 & cor > 0.8 & gh > 0)
+   checkTrue(all(c("MYC", "ZNF263") %in% tbl.sub.pos$tf))
 
 } # slow_test_erythropoeisis.hoxb4
 #------------------------------------------------------------------------------------------------------------------------
@@ -808,9 +824,9 @@ test_add.eqtls.atTagSNP <- function()
    targetGene <- "NDUFS2"
    tpad <- TrenaProjectAD()
 
-
-
-   tbl.fimo <- get(load("../extdata/tbl.fimo.1e3.512bp.ndufs2.RData"))
+   f <- system.file(package="TrenaMultiScore", "extdata", "tbl.fimo.1e3.512bp.ndufs2.RData")
+   checkTrue(file.exists(f))
+   tbl.fimo <- get(load(f))
 
       #--------------------------------------------------------------
       # a very simple case to start, related to AD, just the tag.snp
@@ -824,8 +840,12 @@ test_add.eqtls.atTagSNP <- function()
    fimo.chrom <- tbl.fimo.small$chrom[1]
    printf("--- fimo span: %d bases", (fimo.max - fimo.min))
 
-   tbl.oc <- get(load("~/github/TrenaProjectAD/inst/extdata/genomicRegions/boca-hg38-consensus-ATAC.RData"))
-   tbl.eqtl <- get(load("../extdata/tbl.eqtl.ndufs2.small.RData"))
+   f <- system.file(package="TrenaProjectAD", "extdata", "genomicRegions", "boca-hg38-consensus-ATAC.RData")
+   checkTrue(file.exists(f))
+   tbl.oc <- get(load(f))
+   f <- system.file(package="TrenaMultiScore", "extdata", "tbl.eqtl.ndufs2.small.RData")
+   checkTrue(file.exists(f))
+   tbl.eqtl <- get(load(f))
 
    tms <- TrenaMultiScore(tpad, targetGene, tbl.fimo.small, tbl.oc, quiet=FALSE)
 
@@ -874,7 +894,7 @@ test_add.eqtls.atTagSNP <- function()
      # find eqtls hits for GTEx_V8.Brain_Cerebellum eQTLS, at the specified thresholds
      #--------------------------------------------------------------------------------
 
-   tbl.eqtl.02 <- subset(tbl.eqtl, hg38 >= fimo.min &
+   atbl.eqtl.02 <- subset(tbl.eqtl, hg38 >= fimo.min &
                                    hg38 <= fimo.max &
                                    gene=="NDUFS2" &
                                    grepl("GTEx_V8.Brain_Cerebellum", study, ignore.case=TRUE))

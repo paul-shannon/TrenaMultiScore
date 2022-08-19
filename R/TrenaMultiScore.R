@@ -135,7 +135,6 @@ setMethod('getGeneHancerRegion', 'TrenaMultiScore',
             return(data.frame())
             } # failed
         obj@state$genehancer <- tbl.gh
-        if(nrow(tbl.gh) == 0) return(data.frame())
         start <- min(tbl.gh$start) - 1000
         end <- max(tbl.gh$end) + 1000
         width <- 1 + end - start
@@ -518,8 +517,10 @@ setMethod('addDistanceToTSS', 'TrenaMultiScore',
       targetGene.info <- as.list(getTranscriptsTable(getProject(obj))[coi])
       tbl <- getMultiScoreTable(obj)
       tss <- NA_integer_
-      if(length(targetGene.info) > 0)
-         tss <- (targetGene.info$tss - tbl$start)  * (targetGene.info$strand) * -1
+      if(all(c("start", "end", "strand")  %in% names (targetGene.info))){
+          if(length(targetGene.info$start) > 0)
+              tss <- (targetGene.info$tss - tbl$start)  * (targetGene.info$strand) * -1
+          } # if start,end,strand all found
       tbl$tss <- tss
       obj@state$fimo <- tbl
       }) # addDistanceToTSS
@@ -566,8 +567,10 @@ setMethod('scoreMotifHitsForGeneHancer', 'TrenaMultiScore',
       if(nrow(obj@state$genehancer) == 0)
          getGeneHancerRegion(obj)
       tbl.gh <- obj@state$genehancer
-      if(!grepl("chr", tbl.gh$chrom[1]))
-         tbl.gh$chrom <- paste0("chr", tbl.gh$chrom)
+      if(nrow(tbl.gh) > 0){
+         if(!grepl("chr", tbl.gh$chrom[1]))
+             tbl.gh$chrom <- paste0("chr", tbl.gh$chrom)
+         } # if tbl.gh
       tbl.fimo <- obj@state$fimo
       if(nrow(tbl.fimo) == 0)
          stop("TrenaMultiScore::scoreMotifHitsForGeneHancer error: no fimo hits yet identified.")
@@ -619,9 +622,9 @@ setMethod('addGeneExpressionCorrelations', 'TrenaMultiScore',
       if(nrow(tbl.fimo) == 0)
          stop("TrenaMultiScore::addGeneExpressionCorrelations error: no fimo hits yet identified.")
 
-      f <- function(tf){
+      f <- function(tf, targetGene){
          if(tf %in% rownames(mtx))
-           return(cor(mtx[obj@targetGene,], mtx[tf,], method=method, use="pairwise.complete.obs"))
+           return(cor(mtx[targetGene,], mtx[tf,], method=method, use="pairwise.complete.obs"))
          else return(NA)
          }
 
@@ -633,7 +636,12 @@ setMethod('addGeneExpressionCorrelations', 'TrenaMultiScore',
           tfs <- sort(unique(tbl.fimo$tf))
           if(!obj@state$quiet)
              printf("starting creation of cor.map for %d tfs", length(tfs))
-          cor.map <- unlist(lapply(tfs, f))
+          targetGene <- obj@targetGene
+             # TMS uses genehancer and TrenaProjectHG38, with gene symbol C2orf49-DT"
+             # but GTEx eQTLs and expression matrices use "RP11-332H14.2"
+             # here is nasty hack to very temporarily work around this
+             # todo: correct incoming GTEx data to use C2orf49-DT
+          cor.map <- unlist(lapply(tfs, function(tf) f(tf, targetGene)))
           if(!obj@state$quiet)
              printf("created cor.map for %d tfs", length(tfs))
           names(cor.map) <- tfs

@@ -15,7 +15,8 @@ explore_addRBPtoTable <- function()
    loc <- getGeneHancerRegion(tms)
    with(loc, 1 + end - start) # 548kb
    findOpenChromatin(tms)
-   findFimoTFBS(tms, fimo.threshold=1e-4)   # 146k hits!
+   findFimoTFBS(tms, fimo.threshold=1e-3)   # 146k hits!
+   "TBX15" %in% getMultiScoreTable(tms)$tf
    addChIP(tms)
    scoreMotifHitsForConservation(tms)
    scoreMotifHitsForGeneHancer(tms)
