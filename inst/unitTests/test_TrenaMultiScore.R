@@ -900,7 +900,7 @@ test_add.eqtls.atTagSNP <- function()
      # find eqtls hits for GTEx_V8.Brain_Cerebellum eQTLS, at the specified thresholds
      #--------------------------------------------------------------------------------
 
-   atbl.eqtl.02 <- subset(tbl.eqtl, hg38 >= fimo.min &
+   tbl.eqtl.02 <- subset(tbl.eqtl, hg38 >= fimo.min &
                                    hg38 <= fimo.max &
                                    gene=="NDUFS2" &
                                    grepl("GTEx_V8.Brain_Cerebellum", study, ignore.case=TRUE))

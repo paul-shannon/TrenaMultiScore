@@ -1,3 +1,10 @@
+#' @title TMS
+#' @description an R6 wrapper class for TrenaMultiScore
+#' @name TMS
+#'
+#' @import trena
+#'
+#' @export
 library(R6)
 library(TrenaProjectErythropoiesis)
 # library(TrenaMultiScore)
