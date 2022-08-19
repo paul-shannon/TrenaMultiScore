@@ -52,6 +52,7 @@ test_getGeneHancerRegion <- function()
 {
    message(sprintf("--- test_getGeneHancerRegion"))
 
+   tmse <- TrenaMultiScore(tpe, "GATA2");
    tbl.gata2 <- getGeneHancerRegion(tmse)
    checkTrue(is.data.frame(tbl.gata2))
    checkEquals(as.list(tbl.gata2), list(chrom="chr3", start=128073944, end=128683249, width=609306))
@@ -137,6 +138,7 @@ slow_test_findFimoTFBS <- function()
 {
    message(sprintf("--- slow_test_findFimoTFBS"))
 
+   tmse <- TrenaMultiScore(tpe, "GATA2");
    findOpenChromatin(tmse, "chr3", start=128483204, end=128483276)
    getOpenChromatin(tmse)
 
@@ -158,6 +160,7 @@ disabled_test_findMoodsTFBS <- function()
 {
    message(sprintf("--- test_findMoodsTFBS"))
 
+   tmse <- TrenaMultiScore(tpe, "GATA2");
    findOpenChromatin(tmse, "chr3", start=128483204, end=128483276)
    getOpenChromatin(tmse)
 
@@ -185,6 +188,7 @@ test_scoreMotifHitsForConservation <- function()
 {
    message(sprintf("--- test_scoreMotifHitsForConservation"))
 
+   tmse <- TrenaMultiScore(tpe, "GATA2");
    findOpenChromatin(tmse, "chr3", start=128481000, end=128489000)
    findFimoTFBS(tmse, fimo.threshold=1e-5)
    tbl.fimo <- getMultiScoreTable(tmse)
@@ -208,9 +212,10 @@ test_getTargetGeneInfo <- function()
 {
    message(sprintf("--- test_getTargetGeneInfo"))
 
+   tmse <- TrenaMultiScore(tpe, "GATA2");
    x <- getTargetGeneInfo(tmse)
    checkTrue(all(c("tss", "strand", "chrom", "start", "end") %in% names(x)))
-   checkEquals(x$tss,  48580111)
+   checkEquals(x$tss,  128493185)
    checkEquals(x$strand, -1)
 
 } # test_getTargetGeneInfo
@@ -219,8 +224,9 @@ test_addDistanceToTSS <- function()
 {
    message(sprintf("--- test_addDistanceToTSS"))
 
+   tmse <- TrenaMultiScore(tpe, "GATA2");
    tss <- getTargetGeneInfo(tmse)$tss
-   shoulder <- 5000
+   shoulder <- 10000
 
    findOpenChromatin(tmse, "chr3", start=tss-(2*shoulder), end=tss+shoulder)
 
