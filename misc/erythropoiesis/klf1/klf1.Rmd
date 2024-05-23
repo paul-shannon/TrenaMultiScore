@@ -1,0 +1,180 @@
+---
+title: "TrenaMultiScore Demo: KLF1 regulation in Erythropoiesis"
+output: html_document
+css: style.css
+---
+
+### Overview
+
+TrenaMultiScore is conceptually simple.  For any target gene whose
+regulators we wish to find, we take these steps:
+
+- Identify a large genomic region surrounding the gene, typically 200kb to 2Mb, in which
+regulatory elements may lie.  This may be done at your discretion, or
+by consulting GeneHancer, which curates known regulatory relationships
+with the target gene.
+
+- Subset this large region by overlaying known open chromatin.  For Brand Lab
+erythropoiesis studies, we currently use ATAC-Seq regions assayed in (?) 2022.
+
+- Score TF motif to DNA sequence match in all of these ATAC-Seq regions, using FIMO
+
+- Note that the ATAC-seq filtering may be omitted,
+and all FIMO matches to the entire genomic region span may be considered as
+binding sites for transcription factor binding.  In general, however, we try
+to focus on genomic regions in which there is some evidence, in seem relevant
+biological context, for transcription factor binding.
+
+- Annotate these regions with as much, or as little other evidence as you choose.
+We typically add these annotations (though not all are included in this demo)
+to each ATAC-seq region.  Single-cell data, CUT&TAG, DNAase-seq, 4C confirmation,
+Ribo-Seq: these and other assays can be used to annotate each FIMO site.
+
+Here are some of the annotations we have recently employed:
+
+  - mRNA expression correlation between the FIMO-predicted TF and the target gene
+  - FIMO sequence match score
+  - ChIP hits from ReMap2020
+  - distance to target gene's TSS
+  - Phas conservation
+  - cognate protein expression
+  - detailed GeneHancer relations
+  - methylation
+
+These regions, annotated these ways, are expressed as an R data.frame.
+You may, in an exploratory mode, or perhaps with a strict
+set of annotation filters, identify TFs of interest by subsetting that
+data.frame (aka "tms table") using the venerable R function **subset**.
+
+In this demonstration, we use a few annotations, strict filtering, to identify
+two candidate TFs for KLF1 across the erythropoiesis time course.
+
+### A Simple Demo
+
+We begin by loading the two fundamental packages:
+
+  - TrenaMultiScore for algorithms and operations
+  - TrenaProjectErythropoiesis for a range of Brand Lab data
+
+Because it is complex and time-consuming to build these R packages, and all of their dependencies,
+I will soon provide you with pre-build Docker images.
+
+```{r main, echo=TRUE}
+suppressWarnings(
+suppressMessages({
+   library(TrenaMultiScore)
+   library(TrenaProjectErythropoiesis)
+   library(factoextra)
+     # Extract and Visualize the Results of Multivariate Data Analyses
+
+tpe <- TrenaProjectErythropoiesis()
+tms <- TrenaMultiScore(tpe,  "KLF1")
+}))
+```
+
+The GeneHancer project curates genome-wide enhancer/target gene combinations.
+Here we learn the full region over which enhancers annotated to KLF1 have been found
+or predicted.  We restrict our subsequent analysis to this cis region.
+(You can also specify this "genomic region of regulatory interest" manually, to include
+larger or smaller regions, or regions on other chromosomes.)
+
+```{r enhancers, echo=TRUE}
+loc <- getGeneHancerRegion(tms)
+print(sprintf("genehancer genomic span: %d kb", with(loc, 1 + end - start)))
+```
+
+The Brand Lab provides ATAC-Seq data.  Here we use the version which merges open chromatin
+across all timepoints in the erythropoiesis timecourse.
+```{r atac, echo=TRUE}
+findOpenChromatin(tms)  # consults atac-seq
+```
+[FIMO](https://meme-suite.org/meme/doc/fimo.html) scores transcription factor binding PWMs against
+genomic sequence.  We do that now, with a [MotifDB](https://www.bioconductor.org/packages/release/bioc/html/MotifDb.html)
+PWMs, where the target genomic sequences are only the ATAC-Seq hits in the 203 kb genehancer genomic span.
+
+```{r fimo, echo=TRUE}
+suppressWarnings(
+suppressMessages({
+  findFimoTFBS(tms, fimo.threshold=1e-3)
+  }))
+```
+TrenaMultiScore's fundamental data structure is a "feature table" -  a simple R data.frame.
+It has one row for every FIMO match in any Brand Lab ATAC-Seq hit in the genehancer-derived genomic region upstrean
+and downstream of KLF1.  It has a minimum of 9 columns - but in practice, many more, as you will see below,
+as we add columns to those basic 9.  First, however, let us look at those basic 9.
+
+
+```{r basicTable, echo=TRUE}
+tbl = getMultiScoreTable(tms)
+rownames(tbl) = NULL
+print(sprintf("rows: %d   cols: %d",   nrow(tbl), ncol(tbl)))
+```
+
+```{r comment='', echo=FALSE, results='asis'}
+ knitr::kable(head(tbl), caption = "First 6 rows", floating.environment="sidewaystable")
+```
+Now add additional comments:  ChIP and distance to KLF1's TSS.
+ChIP annotations are from [ReMap2022](https://remap2022.univ-amu.fr/).  These may be filtered
+for cell-type -- I will fill in those details for you later.
+
+```{r chip, echo=TRUE}
+addChIP(tms)   
+print(sprintf("ncol(tbl): %d", ncol(getMultiScoreTable(tms))))
+
+```
+Add distance to KLF1 TSS
+```{r tss, echo=TRUE}
+addDistanceToTSS(tms)   
+print(sprintf("ncol(tbl): %d", ncol(getMultiScoreTable(tms))))
+```
+One of the better clues to regulatory relationship of TF to target gene lies in
+patterns of mRNA co-expression.  Add that information now.
+
+```{r expression, echo=TRUE}
+mtx <- getExpressionMatrix(tpe, "brandLabDifferentiationTimeCourse-27171x28")
+addGeneExpressionCorrelations(tms, mtx)
+print(sprintf("ncol(tbl): %d", ncol(getMultiScoreTable(tms))))
+```
+
+We have more established annotations (columns) we can add to this table. 
+And many more <i>possible</i> annotaions, qualitative or quantitative,
+all easily accomodated by  TrenaMultiScore.
+
+Let us now extract the current table, and query it for TF/KLF1 associations.
+This is necessarily an exploratory process - one that is informed by your
+biological sensibility, experience and intuition.  Here are a few steps in
+one such exploration.
+
+Find all the TF binding sites:
+
+  - acceptable FIMO score for a TFBS in an ATAC-Seq hit
+  - TFBS within 1000 bases of KLF1's TSS
+  - TF and KLF1 have a very strong corrleation
+
+```{r subset1, echo=TRUE}
+tbl <- getMultiScoreTable(tms)
+tbl.strong <- subset(tbl, chip & abs(cor) > 0.7 & fimo_pvalue < 1e-3 & abs(tss) < 1000)
+print(table(tbl.strong$tf))
+```
+
+Thus, with these strict filtering criteria, applied via the standard R function
+**subset**, we find two interesting binding sites for E2F4, and one for TFDP1.
+We note that these two putative TFs are variously described, in a casual google search,
+as [dimer parters](https://www.uniprot.org/uniprotkb/Q16254/entry).   You may know
+a lot about this already!
+
+
+```{r plot, echo=TRUE, out.width = '70%'}
+plot(mtx["KLF1",], type="b", col="blue", pch=16, axes=FALSE,
+      xlab="day", ylab="mRNA", ylim=c(7,13), main="KLF1")
+dayNames = colnames(mtx)
+dayNames = sub("day", "", dayNames)
+dayNames = sub("\\.r[12]", "", dayNames)
+axis(1, at=0:28, labels = c("", dayNames))
+axis(2, at=4:14, labels=as.character(4:14))
+lines(mtx["E2F4",], type="b", pch=16, col="red")
+lines(mtx["TFDP1",], type="b", pch=16, col="darkgreen")
+legend(2, 13, c("KLF1", "E2F4", "TFDP1"), c("blue", "red", "darkgreen"))
+```
+
+
